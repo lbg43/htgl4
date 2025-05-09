@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人后台管理系统</title>
+    <style>
+        /* 基础样式 */
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        /* 左侧菜单 */
+        .sidebar {
+            width: 200px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background-color: #2d3436;
+            color: white;
+            padding-top: 20px;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            color: #b2bec3;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+        }
+
+        .menu-item.active {
+            background-color: #636e72;
+            color: white;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            margin-left: 200px;
+            padding: 20px;
+            background-color: white;
+            min-height: 100vh;
+        }
+
+        /* 表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: 500;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        /* 添加禁用按钮样式 */
+        .btn.disabled {
+            background-color: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+        }
+
+        .btn-logout {
+            background-color: #f39c12;
+            color: white;
+            margin-top: 20px;
+        }
+
+        /* 调试信息 */
+        #debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        /* 会话计时器 */
+        /* 删除这段样式 */
+        /* #session-timer {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        } */
+
+        /* 模板编辑弹窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            width: 50%;
+            border-radius: 5px;
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .template-input {
+            width: 100%;
+            min-height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div style="padding: 15px 20px; border-bottom: 1px solid #636e72;">
+            <h3 style="margin: 0;">机器人后台管理系统</h3>
+        </div>
+        <a href="#" class="menu-item active" onclick="showTab('robots')">
+            🤖 机器人列表
+        </a>
+        <a href="#" class="menu-item" onclick="showTab('users')">
+            👥 用户管理
+        </a>
+        <a href="#" class="menu-item" onclick="showPasswordModal()">
+            🔑 修改密码
+        </a>
+        <a href="#" class="menu-item" onclick="showTab('settings')">
+            ⚙️ 系统设置
+        </a>
+        <a href="#" class="menu-item btn-logout" onclick="logout()">
+            🚪 退出登录
+        </a>
+    </div>
+
+    <!-- 添加管理员信息显示在右上角 -->
+    <div id="admin-info" style="position: fixed; top: 10px; right: 20px; background-color: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 4px; font-size: 14px; z-index: 1000; display: flex; align-items: center;">
+        <span style="margin-right: 8px;">👤</span>
+        <span id="admin-username">管理员</span>
+    </div>
+
+    <div class="main-content">
+        <!-- 机器人管理页面 -->
+        <div id="robots-tab">
+            <h2>机器人管理</h2>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="addRobot()">加机器人</button>
+                <button class="btn btn-primary" onclick="batchAddRobots()">批量新增机器人</button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>机器人用户名</th>
+                        <th>机器人token</th>
+                        <th>管理员ID</th>
+                        <th>超级管理员ID</th>
+                        <th>欢迎语</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="robots-list"></tbody>
+            </table>
+        </div>
+
+<!-- 用户管理页面 -->
+<div id="users-tab" style="display: none;">
+    <h2>用户管理</h2>
+    <div style="margin-bottom: 20px;">
+        <button class="btn btn-primary" onclick="refreshData('users')">刷新列表</button>
+        <!-- 确保搜索框的value属性为空字符串 -->
+        <input type="text" id="user-search-input" placeholder="输入关键词搜索用户" autocomplete="off" style="padding: 6px; margin-left: 10px; width: 200px;" value="">
+        <button class="btn btn-primary" onclick="searchUsers()">搜索</button>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>用户ID</th>
+                <th>用户名</th>
+                <th>用户昵称</th>
+                <th>注册时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="users-list"></tbody>
+    </table>
+    <!-- 分页控件 -->
+    <div class="pagination" style="margin-top: 20px; text-align: center;">
+        <button class="btn btn-primary" onclick="changePage('prev')" id="prev-page">上一页</button>
+        <span id="page-info" style="margin: 0 15px;">第 1 页</span>
+        <button class="btn btn-primary" onclick="changePage('next')" id="next-page">下一页</button>
+        <!-- 修改跳转到指定页面的控件 -->
+        <span style="margin-left: 15px;">
+            跳转到 <input type="number" id="goto-page" min="1" style="width: 60px; padding: 4px; text-align: center;" value="1">
+            <button class="btn btn-primary" onclick="gotoPage()">确定</button>
+            <button class="btn btn-success" onclick="loadCurrentPage()">加载</button>
+            <button class="btn btn-danger" onclick="clearSearchState()">清除搜索</button>
+        </span>
+    </div>
+</div>
+        <!-- 在系统设置标签页中移除修改密码和Worker URL部分 -->
+        <div id="settings-tab" style="display: none;">
+            <h2>系统设置</h2>
+            
+            <!-- 移除了Worker URL和修改密码部分 -->
+        
+            <!-- 模板管理部分 -->
+            <div style="margin-top: 30px;">
+                <h3>模板管理</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>内容</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="templates-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模板编辑弹窗 -->
+    <div id="template-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeTemplateModal()">&times;</span>
+            <h3>编辑模板</h3>
+            <textarea id="template-content" class="template-input"></textarea>
+            <button class="btn btn-primary" onclick="saveTemplate()">保存</button>
+        </div>
+    </div>
+
+    <!-- 添加修改密码的模态窗口 -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closePasswordModal()">&times;</span>
+            <h3>修改密码</h3>
+            <div style="margin-top: 20px;">
+                <label for="old-password-modal">旧密码:</label><br>
+                <input type="password" id="old-password-modal" style="width: 100%; padding: 5px; margin: 5px 0;">
+                
+                <label for="new-password-modal">新密码:</label><br>
+                <input type="password" id="new-password-modal" style="width: 100%; padding: 5px; margin: 5px 0;">
+                
+                <label for="confirm-password-modal">确认新密码:</label><br>
+                <input type="password" id="confirm-password-modal" style="width: 100%; padding: 5px; margin: 5px 0;">
+                
+                <button class="btn btn-primary" onclick="changePasswordModal()" style="margin-top: 10px;">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保持原有的 HTML 结构不变，直到 debug-info div -->
+        <div id="debug-info"></div>
+    
+        <!-- 合并所有的 script 到一个标签中 -->
+        <script>
+        const CONFIG = {
+            WORKER_URL: 'https://lingering-wildflower-3bad.vickippankeyz66.workers.dev'  // 修改为Cloudflare Worker URL
+        };
+            let currentTemplateId = null;
+            let currentTab = 'robots';
+            let currentPage = 1;
+            const pageSize = 10;
+            let totalUsers = 0;
+            let apiKey = '';  // 用于存储API密钥
+    
+            // 所有其他函数保持不变，但要删除重复定义的函数
+            function log(message) {
+                console.log(message);
+                const debugInfo = document.getElementById('debug-info');
+                const time = new Date().toLocaleTimeString();
+                debugInfo.innerHTML = `<div>[${time}] ${message}</div>` + debugInfo.innerHTML;
+                if (debugInfo.children.length > 10) {
+                    debugInfo.removeChild(debugInfo.lastChild);
+                }
+            }
+    
+            function startLoginCheck() {
+                setInterval(checkLogin, 60 * 1000);
+            }
+    
+            // 添加通用的请求函数
+            async function makeRequest(type, data = {}) {
+                try {
+                    console.log('Making request to:', CONFIG.WORKER_URL);
+                    console.log('Request data:', { type, ...data });
+    
+                    // 获取存储的API密钥
+                    const storedApiKey = localStorage.getItem('apiKey');
+                    
+                    const response = await fetch(`${CONFIG.WORKER_URL}/api`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-API-Key': storedApiKey || apiKey  // 添加API密钥头
+                        },
+                        body: JSON.stringify({
+                            type,
+                            ...data
+                        })
+                    });
+    
+                    console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            // API密钥无效，重定向到登录页面
+                            log('登录已过期或API密钥无效，请重新登录');
+                            localStorage.removeItem('isLoggedIn');
+                            localStorage.removeItem('lastVerifyTime');
+                            localStorage.removeItem('apiKey');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                            throw new Error('API密钥无效，需要重新登录');
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+    
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || '请求失败');
+                    }
+    
+                    return result;
+                } catch (error) {
+                    console.error(`Request failed (${type}):`, error);
+                    throw error;
+                }
+            }
+            // 修改测试连接函数
+            async function testConnection() {
+                try {
+                    console.log('Testing connection to:', CONFIG.WORKER_URL);
+                    
+                    // 获取存储的API密钥
+                    const storedApiKey = localStorage.getItem('apiKey');
+                    
+                    const response = await fetch(`${CONFIG.WORKER_URL}/test`, {
+                        headers: {
+                            'X-API-Key': storedApiKey || apiKey  // 添加API密钥头
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            // API密钥无效，重定向到登录页面
+                            log('登录已过期或API密钥无效，请重新登录');
+                            localStorage.removeItem('isLoggedIn');
+                            localStorage.removeItem('lastVerifyTime');
+                            localStorage.removeItem('apiKey');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                            throw new Error('API密钥无效，需要重新登录');
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    log('连接测试成功');
+                    return true;
+                } catch (error) {
+                    log('连接测试失败: ' + error.message);
+                    return false;
+                }
+            }
+    
+            // 页面加载时的初始化
+            document.addEventListener('DOMContentLoaded', async () => {
+                // 检查用户是否已登录
+                const isLoggedIn = localStorage.getItem('isLoggedIn');
+                const lastVerifyTime = localStorage.getItem('lastVerifyTime');
+                const storedApiKey = localStorage.getItem('apiKey');
+                const currentTime = Date.now();
+                
+                console.log("页面加载时检查登录状态:");
+                console.log("- isLoggedIn:", isLoggedIn);
+                console.log("- lastVerifyTime:", lastVerifyTime);
+                console.log("- storedApiKey:", storedApiKey ? "已设置" : "未设置");
+                
+                if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000) {
+                    // 未登录或登录已过期，重定向到登录页面
+                    log('登录已过期或无效，请重新登录');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // 设置API密钥
+                apiKey = storedApiKey;
+                console.log("设置当前apiKey变量:", apiKey);
+                
+                // 立即检查登录状态
+                const loginValid = await checkLogin();
+                if (!loginValid) {
+                    return; // 登录无效，checkLogin函数已处理重定向
+                }
+                
+                // 获取并显示管理员用户名
+                try {
+                    const adminUsername = localStorage.getItem('adminUsername') || 'admin';
+                    document.getElementById('admin-username').textContent = adminUsername;
+                } catch (error) {
+                    console.error('获取管理员用户名失败:', error);
+                }
+                
+                // 确保搜索框为空
+                const searchInput = document.getElementById('user-search-input');
+                if (searchInput) {
+                    searchInput.value = '';
+                    // 为搜索框添加回车键事件监听
+                    searchInput.addEventListener('keypress', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            searchUsers();
+                        }
+                    });
+                }
+
+                // 添加一个延迟清空搜索框的操作，确保在DOM完全加载后执行
+                setTimeout(() => {
+                    const searchInput = document.getElementById('user-search-input');
+                    if (searchInput) {
+                        searchInput.value = '';
+                    }
+                }, 500);
+                
+                if (!CONFIG.WORKER_URL) {
+                    log('请先配置 Worker URL');
+                    showTab('settings');
+                } else {
+                    const isConnected = await testConnection();
+                    if (isConnected) {
+                        showTab('robots');
+                        startRealtimeUpdates();
+                    } else {
+                        log('无法连接到服务器，请检查配置');
+                        showTab('settings');
+                    }
+                }
+            });
+
+    
+            // 保持其他所有函数的实现不变...
+            // showTab, refreshData, loadTemplates, editTemplate, 
+            // closeTemplateModal, saveTemplate, loadRobots, loadUsers, 
+            // changePage, updatePagination, startRealtimeUpdates 等函数
+            function showTab(tab) {
+                document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+                document.querySelector(`.menu-item[onclick="showTab('${tab}')"]`).classList.add('active');
+            
+                document.getElementById('robots-tab').style.display = tab === 'robots' ? 'block' : 'none';
+                document.getElementById('users-tab').style.display = tab === 'users' ? 'block' : 'none';
+                document.getElementById('settings-tab').style.display = tab === 'settings' ? 'block' : 'none';
+            
+                // 当切换到用户标签页时，清空搜索框
+                if (tab === 'users') {
+                    document.getElementById('user-search-input').value = '';
+                    // 清除搜索状态
+                    window.currentSearchKeyword = null;
+                    // 重置为第一页
+                    currentPage = 1;
+                    document.getElementById('goto-page').value = 1;
+                }
+            
+                currentTab = tab;
+                if (tab === 'settings') {
+                    loadTemplates();
+                } else {
+                    refreshData(tab);
+                }
+            }
+    
+            async function refreshData(type) {
+                if (type === 'robots') {
+                    await loadRobots();
+                } else if (type === 'users') {
+                    await loadUsers();
+                }
+            }
+    
+            async function loadRobots() {
+                try {
+                    log('正在加载机器人列表...');
+                    const result = await makeRequest('getRobots');
+                    
+                    if (!result.success) {
+                        throw new Error(result.error || '加载失败');
+                    }
+                    
+                    const tbody = document.getElementById('robots-list');
+                    if (!result.robots || !Array.isArray(result.robots)) {
+                        throw new Error('数据格式错误');
+                    }
+                    
+                    tbody.innerHTML = result.robots.map(robot => `
+                        <tr>
+                            <td>${robot.username || '-'}</td>
+                            <td>${robot.token || '-'}</td>
+                            <td>${robot.adminId || '-'}</td>
+                            <td>${robot.superAdminId || '-'}</td>
+                            <td>${robot.welcome || '-'}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editAdmin('${robot.id}')">管理员</button>
+                                <button class="btn btn-primary" onclick="editSuperAdmin('${robot.id}')">支援组</button>
+                                <button class="btn btn-primary" onclick="editWelcome('${robot.id}')">欢迎语</button>
+                                <button class="btn btn-primary" onclick="viewUser('${robot.id}')">查看用户</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    log('机器人列表加载完成');
+                } catch (error) {
+                    if (error.message === 'Failed to fetch') {
+                        log('无法连接到服务器，请检查：\n1. Worker 服务是否启动\n2. Worker URL 是否正确配置\n3. 网络连接是否正常');
+                    } else {
+                        log('加载失败: ' + error.message);
+                    }
+                    document.getElementById('robots-list').innerHTML = '<tr><td colspan="6">加载失败</td></tr>';
+                }
+            }
+    
+            async function loadUsers() {
+                try {
+                    log('正在加载用户列表...');
+                    
+                    const result = await makeRequest('getUsers', {
+                        page: currentPage,
+                        pageSize: pageSize
+                    });
+                    
+                    if (!result.success) {
+                        throw new Error(result.error || '加载失败');
+                    }
+                    
+                    totalUsers = result.total || result.users.length;
+                    const tbody = document.getElementById('users-list');
+                    tbody.innerHTML = result.users.map(user => `
+                        <tr data-user-id="${user.id}">
+                            <td>${user.id || '-'}</td>
+                            <td>${user.username || '-'}</td>
+                            <td>${user.nickname || '-'}</td>
+                            <td>${user.registerTime || '-'}</td>
+                            <td>
+                                ${user.isBlocked 
+                                    ? `<button class="btn btn-success" onclick="return unblockUser('${user.id}', event)">解封</button>` 
+                                    : `<button class="btn btn-danger" onclick="return blockUser('${user.id}', event)">封禁</button>`}
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    // 更新页码输入框
+                    document.getElementById('goto-page').value = currentPage;
+                    
+                    updatePagination();
+                    log(`成功加载第 ${currentPage} 页用户数据，共 ${totalUsers} 条记录`);
+                } catch (error) {
+                    log('加载用户列表失败: ' + error.message);
+                    document.getElementById('users-list').innerHTML = '<tr><td colspan="5">加载失败</td></tr>';
+                }
+            }
+    
+            // 显示修改密码模态窗口
+            function showPasswordModal() {
+                document.getElementById('password-modal').style.display = 'block';
+                // 清空输入框
+                document.getElementById('old-password-modal').value = '';
+                document.getElementById('new-password-modal').value = '';
+                document.getElementById('confirm-password-modal').value = '';
+            }
+            
+            // 关闭修改密码模态窗口
+            function closePasswordModal() {
+                document.getElementById('password-modal').style.display = 'none';
+            }
+            
+            // 修改密码（模态窗口版本）
+            async function changePasswordModal() {
+                try {
+                    const oldPassword = document.getElementById('old-password-modal').value;
+                    const newPassword = document.getElementById('new-password-modal').value;
+                    const confirmPassword = document.getElementById('confirm-password-modal').value;
+                    
+                    if (!oldPassword || !newPassword || !confirmPassword) {
+                        log('请填写所有密码字段');
+                        return;
+                    }
+                    
+                    if (newPassword !== confirmPassword) {
+                        log('新密码和确认密码不一致');
+                        return;
+                    }
+                    
+                    log('正在修改密码...');
+                    const result = await makeRequest('changePassword', {
+                        oldPassword,
+                        newPassword
+                    });
+                    
+                    if (result.success) {
+                        // 更新本地存储的密码
+                        localStorage.setItem('currentPassword', newPassword);
+                        
+                        log('密码修改成功，请重新登录');
+                        closePasswordModal();
+                        
+                        // 3秒后退出登录
+                        setTimeout(() => {
+                            logout();
+                        }, 3000);
+                    } else {
+                        log('密码修改失败: ' + (result.error || '未知错误'));
+                    }
+                } catch (error) {
+                    log('密码修改请求失败: ' + error.message);
+                }
+            }
+            
+            // 封禁用户 - 防止跳转的改进版本
+            async function blockUser(userId, event) {
+                try {
+                    // 先阻止默认事件
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    
+                    if (confirm("确定要封禁该用户吗？")) {
+                        log('正在封禁用户...');
+                        
+                        const result = await makeRequest('blockUser', { userId });
+                        if (result.success) {
+                            log('用户已封禁');
+                            
+                            // 直接更新当前行的UI，而不是重新加载整个列表
+                            const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                            if (userRow) {
+                                const actionCell = userRow.querySelector('td:last-child');
+                                if (actionCell) {
+                                    actionCell.innerHTML = `<button class="btn btn-success" onclick="return unblockUser('${userId}', event)">解封</button>`;
+                                }
+                                return false; // 阻止默认行为
+                            } else {
+                                // 如果找不到行元素，使用更保守的方式更新
+                                // 不使用await，避免阻塞和可能的跳转
+                                setTimeout(() => {
+                                    if (window.currentSearchKeyword) {
+                                        searchUsersPage(window.currentSearchKeyword, currentPage);
+                                    } else {
+                                        loadUsers();
+                                    }
+                                }, 100);
+                            }
+                        }
+                    }
+                    return false; // 阻止默认行为
+                } catch (error) {
+                    log('封禁用户失败: ' + error.message);
+                    return false; // 即使出错也阻止默认行为
+                }
+            }
+    
+            // 解封用户 - 防止跳转的改进版本
+            async function unblockUser(userId, event) {
+                try {
+                    // 先阻止默认事件
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    
+                    if (confirm("确定要解封该用户吗？")) {
+                        log('正在解封用户...');
+                        
+                        const result = await makeRequest('unblockUser', { userId });
+                        if (result.success) {
+                            log('用户已解封');
+                            
+                            // 直接更新当前行的UI，而不是重新加载整个列表
+                            const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                            if (userRow) {
+                                const actionCell = userRow.querySelector('td:last-child');
+                                if (actionCell) {
+                                    actionCell.innerHTML = `<button class="btn btn-danger" onclick="return blockUser('${userId}', event)">封禁</button>`;
+                                }
+                                return false; // 阻止默认行为
+                            } else {
+                                // 如果找不到行元素，使用更保守的方式更新
+                                // 不使用await，避免阻塞和可能的跳转
+                                setTimeout(() => {
+                                    if (window.currentSearchKeyword) {
+                                        searchUsersPage(window.currentSearchKeyword, currentPage);
+                                    } else {
+                                        loadUsers();
+                                    }
+                                }, 100);
+                            }
+                        }
+                    }
+                    return false; // 阻止默认行为
+                } catch (error) {
+                    log('解封用户失败: ' + error.message);
+                    return false; // 即使出错也阻止默认行为
+                }
+            }
+    
+            // 编辑管理员
+            async function editAdmin(robotId) {
+                try {
+                    const adminId = prompt("请输入新的管理员ID:");
+                    if (!adminId) return;
+                    
+                    const result = await makeRequest('editAdmin', { robotId, adminId });
+                    if (result.success) {
+                        log('管理员已更新');
+                        await loadRobots();
+                    }
+                } catch (error) {
+                    log('更新管理员失败: ' + error.message);
+                }
+            }
+    
+            // 编辑支援组
+            async function editSuperAdmin(robotId) {
+                try {
+                    const superAdminId = prompt("请输入新的支援组ID:");
+                    if (!superAdminId) return;
+                    
+                    const result = await makeRequest('editSuperAdmin', { robotId, superAdminId });
+                    if (result.success) {
+                        log('支援组已更新');
+                        await loadRobots();
+                    }
+                } catch (error) {
+                    log('更新支援组失败: ' + error.message);
+                }
+            }
+    
+            // 编辑欢迎语
+            async function editWelcome(robotId) {
+                try {
+                    const welcome = prompt("请输入新的欢迎语:");
+                    if (welcome === null) return;
+                    
+                    const result = await makeRequest('editWelcome', { robotId, welcome });
+                    if (result.success) {
+                        log('欢迎语已更新');
+                        await loadRobots();
+                    }
+                } catch (error) {
+                    log('更新欢迎语失败: ' + error.message);
+                }
+            }
+    
+            // 查看用户
+            function viewUser(robotId) {
+                showTab('users');
+            }
+    
+            // 加载模板
+            async function loadTemplates() {
+                try {
+                    log('正在加载模板列表...');
+                    const result = await makeRequest('getTemplates');
+                    
+                    const tbody = document.getElementById('templates-list');
+                    tbody.innerHTML = result.templates.map(template => `
+                        <tr>
+                            <td>${template.id}</td>
+                            <td>${template.name}</td>
+                            <td>${template.content.substring(0, 30)}...</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="editTemplate('${template.id}')">编辑</button>
+                            </tr>
+                        `).join('');
+                    
+                    log('模板列表加载完成');
+                } catch (error) {
+                    log('加载模板失败: ' + error.message);
+                    document.getElementById('templates-list').innerHTML = '<tr><td colspan="4">加载失败</td></tr>';
+                }
+            }
+    
+            // 编辑模板
+            async function editTemplate(templateId) {
+                try {
+                    currentTemplateId = templateId;
+                    const result = await makeRequest('getTemplate', { templateId });
+                    
+                    document.getElementById('template-content').value = result.content;
+                    document.getElementById('template-modal').style.display = 'block';
+                } catch (error) {
+                    log('获取模板失败: ' + error.message);
+                }
+            }
+    
+            // 关闭模板编辑弹窗
+            function closeTemplateModal() {
+                document.getElementById('template-modal').style.display = 'none';
+            }
+    
+            // 保存模板
+            async function saveTemplate() {
+                try {
+                    const content = document.getElementById('template-content').value;
+                    
+                    // 先获取当前API密钥，确保它存在
+                    const storedApiKey = localStorage.getItem('apiKey');
+                    if (!storedApiKey) {
+                        log('缺少API密钥，请刷新页面重新登录');
+                        return;
+                    }
+                    
+                    log('正在保存模板...');
+                    
+                    // 先检查登录状态
+                    const loginValid = await checkLogin();
+                    if (!loginValid) {
+                        log('登录状态已失效，无法保存模板');
+                        return;
+                    }
+                    
+                    // 使用特定的错误处理版本的请求函数
+                    try {
+                        const response = await fetch(`${CONFIG.WORKER_URL}/endpoint`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-API-Key': storedApiKey
+                            },
+                            body: JSON.stringify({
+                                type: 'updateTemplate',
+                                templateId: currentTemplateId,
+                                content
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            if (response.status === 403) {
+                                log('登录已过期，请在新窗口重新登录后再尝试');
+                                return;
+                            }
+                            throw new Error(`服务器响应错误: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        if (!result.success) {
+                            throw new Error(result.error || '保存失败');
+                        }
+                        
+                        log('模板已成功保存');
+                        closeTemplateModal();
+                        loadTemplates();
+                    } catch (error) {
+                        log('保存模板失败: ' + error.message);
+                    }
+                } catch (error) {
+                    log('操作失败: ' + error.message);
+                }
+            }
+    
+            // 保存设置
+            function saveSettings() {
+                // 由于没有worker-url元素，我们可以直接使用CONFIG.WORKER_URL
+                log('设置已保存');
+                testConnection();
+            }
+    
+            // 加载当前页数据
+            function loadCurrentPage() {
+                // 根据是否有搜索关键词决定加载方式
+                if (window.currentSearchKeyword) {
+                    // 搜索结果分页
+                    searchUsersPage(window.currentSearchKeyword, currentPage);
+                } else {
+                    // 普通用户列表
+                    loadUsers();
+                }
+                log(`正在加载第 ${currentPage} 页数据...`);
+            }
+            
+            // 清除搜索状态
+            function clearSearchState() {
+                window.currentSearchKeyword = null;
+                const searchInput = document.getElementById('user-search-input');
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+                log('已清除搜索状态');
+            }
+            
+            // 修改changePage函数，使其和gotoPage保持一致的行为
+            function changePage(direction) {
+                const oldPage = currentPage;
+                const totalPages = Math.ceil(totalUsers / pageSize);
+                
+                if (direction === 'prev' && currentPage > 1) {
+                    currentPage--;
+                } else if (direction === 'next' && currentPage < totalPages) {
+                    currentPage++;
+                } else {
+                    // 已经在第一页或最后一页
+                    return;
+                }
+                
+                // 只更新页码显示，不加载数据
+                document.getElementById('goto-page').value = currentPage;
+                document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                updatePagination(); // 更新分页按钮状态
+                log(`已切换到第 ${currentPage} 页，点击"加载"按钮加载数据`);
+            }
+            
+            // 跳转到指定页码
+            function gotoPage() {
+                const pageInput = document.getElementById('goto-page');
+                const pageNum = parseInt(pageInput.value, 10);
+                
+                if (isNaN(pageNum) || pageNum < 1) {
+                    log('请输入有效的页码');
+                    return;
+                }
+                
+                const totalPages = Math.ceil(totalUsers / pageSize);
+                if (pageNum > totalPages) {
+                    log(`最大页码为 ${totalPages}，已自动修正为最后一页`);
+                    currentPage = totalPages;
+                } else {
+                    currentPage = pageNum;
+                }
+                
+                // 只更新页码显示，不加载数据，不跳转页面
+                document.getElementById('goto-page').value = currentPage;
+                document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                updatePagination(); // 更新分页按钮状态
+                log(`已设置页码为第 ${currentPage} 页，点击"加载"按钮加载数据`);
+            }
+            
+            // 搜索用户指定页
+            async function searchUsersPage(keyword, page) {
+                try {
+                    if (!keyword || keyword.trim() === '') {
+                        // 如果关键词为空，清除搜索状态，加载普通用户列表
+                        window.currentSearchKeyword = null;
+                        loadUsers();
+                        return;
+                    }
+                    
+                    log(`正在加载搜索结果第 ${page} 页...`);
+                    const result = await makeRequest('searchUsers', { 
+                        keyword,
+                        page: page,
+                        pageSize: pageSize
+                    });
+                    
+                    if (result.success && result.users) {
+                        // 更新总用户数和分页信息
+                        totalUsers = result.total || result.users.length;
+                        
+                        const tbody = document.getElementById('users-list');
+                        if (result.users.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5">未找到匹配的用户</td></tr>';
+                            log('未找到匹配的用户');
+                            // 隐藏分页控件
+                            document.querySelector('.pagination').style.display = 'none';
+                        } else {
+                            tbody.innerHTML = result.users.map(user => `
+                                <tr data-user-id="${user.id}">
+                                    <td>${user.id || '-'}</td>
+                                    <td>${user.username || '-'}</td>
+                                    <td>${user.nickname || '-'}</td>
+                                    <td>${user.registerTime || '-'}</td>
+                                    <td>
+                                        ${user.isBlocked 
+                                            ? `<button class="btn btn-success" onclick="return unblockUser('${user.id}', event)">解封</button>` 
+                                            : `<button class="btn btn-danger" onclick="return blockUser('${user.id}', event)">封禁</button>`}
+                                    </td>
+                                </tr>
+                            `).join('');
+                            log(`搜索到 ${result.total} 个匹配用户，当前显示 ${result.users.length} 个`);
+                            
+                            // 更新页码输入框
+                            document.getElementById('goto-page').value = currentPage;
+                            
+                            // 显示分页控件
+                            updatePagination();
+                            
+                            // 保存当前搜索关键词
+                            window.currentSearchKeyword = keyword;
+                        }
+                    } else {
+                        throw new Error(result.error || '搜索失败');
+                    }
+                } catch (error) {
+                    log('加载搜索结果失败: ' + error.message);
+                }
+            }
+            
+            function updatePagination() {
+                // 禁用或启用上一页按钮
+                const prevButton = document.getElementById('prev-page');
+                if (currentPage <= 1) {
+                    prevButton.disabled = true;
+                    prevButton.classList.add('disabled');
+                } else {
+                    prevButton.disabled = false;
+                    prevButton.classList.remove('disabled');
+                }
+                
+                // 禁用或启用下一页按钮
+                const nextButton = document.getElementById('next-page');
+                const totalPages = Math.ceil(totalUsers / pageSize);
+                
+                // 显示总页数信息
+                document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                
+                if (currentPage >= totalPages) {
+                    nextButton.disabled = true;
+                    nextButton.classList.add('disabled');
+                } else {
+                    nextButton.disabled = false;
+                    nextButton.classList.remove('disabled');
+                }
+                
+                // 确保分页区域可见
+                document.querySelector('.pagination').style.display = 'block';
+            }
+                
+                               // 实时更新
+                               function startRealtimeUpdates() {
+                    setInterval(() => {
+                        if (currentTab === 'robots') {
+                            loadRobots();
+                        } else if (currentTab === 'users') {
+                            loadUsers();
+                        }
+                    }, 30000); // 每30秒刷新一次
+                }
+                function logout() {
+                    localStorage.removeItem('lastVerifyTime');
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('apiKey');
+                    window.location.href = 'index.html';
+                }
+                
+                // 搜索用户
+                async function searchUsers() {
+                    try {
+                        const keyword = document.getElementById('user-search-input').value.trim();
+                        if (!keyword) {
+                            log('请输入搜索关键词');
+                            // 清除搜索状态
+                            window.currentSearchKeyword = null;
+                            // 加载普通用户列表
+                            loadUsers();
+                            return;
+                        }
+                        
+                        // 搜索时重置为第一页
+                        currentPage = 1;
+                        document.getElementById('goto-page').value = 1;
+                        
+                        log(`正在搜索用户: ${keyword}...`);
+                        const result = await makeRequest('searchUsers', { 
+                            keyword,
+                            page: currentPage,
+                            pageSize: pageSize
+                        });
+                        
+                        if (result.success && result.users) {
+                            // 更新总用户数和分页信息
+                            totalUsers = result.total || result.users.length;
+                            
+                            const tbody = document.getElementById('users-list');
+                            if (result.users.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="5">未找到匹配的用户</td></tr>';
+                                log('未找到匹配的用户');
+                                // 隐藏分页控件
+                                document.querySelector('.pagination').style.display = 'none';
+                            } else {
+                                tbody.innerHTML = result.users.map(user => `
+                                    <tr data-user-id="${user.id}">
+                                        <td>${user.id || '-'}</td>
+                                        <td>${user.username || '-'}</td>
+                                        <td>${user.nickname || '-'}</td>
+                                        <td>${user.registerTime || '-'}</td>
+                                        <td>
+                                            ${user.isBlocked 
+                                                ? `<button class="btn btn-success" onclick="return unblockUser('${user.id}', event)">解封</button>` 
+                                                : `<button class="btn btn-danger" onclick="return blockUser('${user.id}', event)">封禁</button>`}
+                                        </td>
+                                    </tr>
+                                `).join('');
+                                log(`搜索到 ${result.total} 个匹配用户，当前显示 ${result.users.length} 个`);
+                                
+                                // 显示分页控件
+                                updatePagination();
+                                
+                                // 保存当前搜索关键词
+                                window.currentSearchKeyword = keyword;
+                            }
+                        } else {
+                            throw new Error(result.error || '搜索失败');
+                        }
+                    } catch (error) {
+                        log('搜索用户失败: ' + error.message);
+                    }
+                }
+                
+                // 添加机器人函数
+                async function addRobot() {
+                    try {
+                        const username = prompt("请输入机器人用户名:");
+                        if (!username) return;
+                        
+                        const token = prompt("请输入机器人Token:");
+                        if (!token) return;
+                        
+                        const adminId = prompt("请输入管理员ID:");
+                        if (!adminId) return;
+                        
+                        const welcome = prompt("请输入欢迎语(可选):", "欢迎使用Telegram官方机器人！如需解除异常请点击开始解除！");
+                        
+                        log(`正在添加机器人: ${username}`);
+                        const result = await makeRequest('addRobot', { 
+                            username, 
+                            token, 
+                            adminId, 
+                            welcome,
+                            isFirst: true // 假设这是第一个机器人
+                        });
+                        
+                        if (result.success) {
+                            log(result.message || '机器人添加成功');
+                            await loadRobots(); // 重新加载机器人列表
+                        }
+                    } catch (error) {
+                        log('添加机器人失败: ' + error.message);
+                    }
+                }
+                
+                // 批量添加机器人函数
+                async function batchAddRobots() {
+                    try {
+                        const robotsText = prompt("请输入机器人信息，格式为：用户名,Token,管理员ID,欢迎语\n每行一个机器人，例如：\nbot1,token1,admin1,欢迎使用\nbot2,token2,admin2,欢迎使用");
+                        if (!robotsText) return;
+                        
+                        const robotsLines = robotsText.split('\n');
+                        const robots = [];
+                        
+                        for (const line of robotsLines) {
+                            const parts = line.split(',');
+                            if (parts.length >= 3) {
+                                robots.push({
+                                    username: parts[0].trim(),
+                                    token: parts[1].trim(),
+                                    adminId: parts[2].trim(),
+                                    welcome: parts[3] ? parts[3].trim() : '欢迎使用Telegram官方机器人！如需解除异常请点击开始解除！'
+                                });
+                            }
+                        }
+                        
+                        if (robots.length === 0) {
+                            log('没有有效的机器人信息');
+                            return;
+                        }
+                        
+                        log(`正在批量添加 ${robots.length} 个机器人...`);
+                        const result = await makeRequest('batchAddRobots', { robots });
+                        
+                        if (result.success) {
+                            log(result.message || `成功添加 ${robots.length} 个机器人`);
+                            await loadRobots(); // 重新加载机器人列表
+                        }
+                    } catch (error) {
+                        log('批量添加机器人失败: ' + error.message);
+                    }
+                }
+
+                // 添加检查登录状态的函数
+                async function checkLogin() {
+                    try {
+                        const storedApiKey = localStorage.getItem('apiKey');
+                        console.log('检查登录状态，当前API密钥:', storedApiKey);
+                        
+                        if (!storedApiKey) {
+                            log('未找到API密钥，请重新登录');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                            return false;
+                        }
+                        
+                        const response = await fetch(`${CONFIG.WORKER_URL}/check-login`, {
+                            headers: {
+                                'X-API-Key': storedApiKey
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            if (response.status === 403) {
+                                log('API密钥无效，请重新登录');
+                                localStorage.removeItem('isLoggedIn');
+                                localStorage.removeItem('lastVerifyTime');
+                                localStorage.removeItem('apiKey');
+                                setTimeout(() => {
+                                    window.location.href = 'index.html';
+                                }, 2000);
+                                return false;
+                            }
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        if (result.success && result.isLoggedIn) {
+                            // 更新最后验证时间
+                            localStorage.setItem('lastVerifyTime', Date.now().toString());
+                            return true;
+                        } else {
+                            log('登录状态无效，请重新登录');
+                            localStorage.removeItem('isLoggedIn');
+                            localStorage.removeItem('lastVerifyTime');
+                            localStorage.removeItem('apiKey');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error('检查登录状态失败:', error);
+                        // 如果是网络错误，可能服务器未启动，不要立即重定向
+                        if (error.message !== 'Failed to fetch') {
+                            log('检查登录状态失败，请重新登录');
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                        }
+                        return false;
+                    }
+                }
+            </script>
+        </body>
+        </html>
+        
+        
