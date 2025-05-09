@@ -199,6 +199,12 @@
     </div>
 
     <div class="main-content">
+        <!-- 调试信息 - 如果您能看到这条消息，说明更新已生效 -->
+        <div style="background-color: #ffeb3b; color: #000; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-weight: bold; text-align: center;">
+            更新已生效！您现在看到的是最新版本 <span id="version-info">loading...</span>
+            <button onclick="alert('按钮点击测试成功！'); return false;" style="margin-left: 10px; padding: 5px 10px;">点击测试</button>
+        </div>
+        
         <!-- 机器人管理页面 -->
         <div id="robots-tab">
             <h2>机器人管理</h2>
@@ -318,7 +324,8 @@
         // 修改CONFIG对象
         window.CONFIG = {
             API_KEY: 'api_key_123456',
-            WORKER_URL: 'https://lingering-wildflower-3bad.vickippankeyz66.workers.dev'  // 修改为Cloudflare Worker URL
+            WORKER_URL: 'https://lingering-wildflower-3bad.vickippankeyz66.workers.dev',  // 修改为Cloudflare Worker URL
+            VERSION: '2024-05-09-v2'  // 添加版本号，方便识别更新
         };
             let currentTemplateId = null;
             let currentTab = 'robots';
@@ -336,6 +343,16 @@
                 if (debugInfo.children.length > 10) {
                     debugInfo.removeChild(debugInfo.lastChild);
                 }
+            }
+    
+            // 添加一个函数在页面加载时显示版本信息
+            function showVersion() {
+                const versionElement = document.getElementById('version-info');
+                if (versionElement) {
+                    versionElement.textContent = CONFIG.VERSION || 'unknown';
+                }
+                // 在控制台也显示版本信息
+                console.log("当前页面版本:", CONFIG.VERSION);
             }
     
             function startLoginCheck() {
@@ -418,6 +435,9 @@
     
             // 页面加载时的初始化
             document.addEventListener('DOMContentLoaded', async () => {
+                // 显示版本信息
+                showVersion();
+                
                 // 检查用户是否已登录
                 const isLoggedIn = localStorage.getItem('isLoggedIn');
                 const lastVerifyTime = localStorage.getItem('lastVerifyTime');
@@ -551,10 +571,10 @@
                             <td>${robot.superAdminId || '-'}</td>
                             <td>${robot.welcome || '-'}</td>
                             <td>
-                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editAdmin('${robot.id}'); return false;">管理员</button>
-                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editSuperAdmin('${robot.id}'); return false;">支援组</button>
-                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editWelcome('${robot.id}'); return false;">欢迎语</button>
-                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); viewUser('${robot.id}'); return false;">查看用户</button>
+                                <button class="btn btn-primary robot-btn" data-action="editAdmin" data-robot-id="${robot.id}">管理员</button>
+                                <button class="btn btn-primary robot-btn" data-action="editSuperAdmin" data-robot-id="${robot.id}">支援组</button>
+                                <button class="btn btn-primary robot-btn" data-action="editWelcome" data-robot-id="${robot.id}">欢迎语</button>
+                                <button class="btn btn-primary robot-btn" data-action="viewUser" data-robot-id="${robot.id}">查看用户</button>
                             </td>
                         </tr>
                     `).join('');
@@ -562,6 +582,35 @@
                     
                     // 添加调试信息
                     console.log('机器人列表已加载，当前机器人数量:', result.robots.length);
+                    
+                    // 为所有机器人按钮添加事件监听器
+                    document.querySelectorAll('.robot-btn').forEach(button => {
+                        button.addEventListener('click', function(event) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            const action = this.getAttribute('data-action');
+                            const robotId = this.getAttribute('data-robot-id');
+                            
+                            console.log(`点击了按钮: ${action}, 机器人ID: ${robotId}`);
+                            log(`准备${action === 'editAdmin' ? '编辑管理员' : 
+                                  action === 'editSuperAdmin' ? '编辑支援组' : 
+                                  action === 'editWelcome' ? '编辑欢迎语' : 
+                                  '查看用户'}, 机器人ID: ${robotId}`);
+                            
+                            if (action === 'editAdmin') {
+                                editAdmin(robotId);
+                            } else if (action === 'editSuperAdmin') {
+                                editSuperAdmin(robotId);
+                            } else if (action === 'editWelcome') {
+                                editWelcome(robotId);
+                            } else if (action === 'viewUser') {
+                                viewUser(robotId);
+                            }
+                            
+                            return false;
+                        });
+                    });
                 } catch (error) {
                     if (error.message === 'Failed to fetch') {
                         log('无法连接到服务器，请检查：\n1. Worker 服务是否启动\n2. Worker URL 是否正确配置\n3. 网络连接是否正常');
@@ -1167,6 +1216,71 @@
                         }
                     }, 30000); // 每30秒刷新一次
                 }
+                
+                // 检查登录状态
+                async function checkLogin() {
+                    try {
+                        // 检查本地存储的登录状态
+                        const isLoggedIn = localStorage.getItem('isLoggedIn');
+                        const lastVerifyTime = localStorage.getItem('lastVerifyTime');
+                        const storedApiKey = localStorage.getItem('apiKey');
+                        const currentTime = Date.now();
+                        
+                        // 如果本地存储显示未登录或者登录已过期，重定向到登录页面
+                        if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000) {
+                            console.log('登录状态无效或已过期');
+                            log('登录已过期，请重新登录');
+                            window.location.href = 'index.html';
+                            return false;
+                        }
+                        
+                        // 如果有API请求失败计数达到阈值，直接重定向
+                        const apiFailCount = parseInt(sessionStorage.getItem('apiFailCount') || '0');
+                        if (apiFailCount > 5) {
+                            console.log('API请求失败次数过多，需要重新登录');
+                            log('连接服务器失败，请重新登录');
+                            logout();
+                            return false;
+                        }
+                        
+                        try {
+                            // 尝试与服务器进行通信，验证登录状态
+                            const response = await fetch(`${CONFIG.WORKER_URL}/getMe`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-API-Key': storedApiKey
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                // 如果通信成功，更新最后验证时间
+                                localStorage.setItem('lastVerifyTime', currentTime.toString());
+                                // 重置API失败计数
+                                sessionStorage.setItem('apiFailCount', '0');
+                                return true;
+                            } else {
+                                throw new Error(`服务器响应错误: ${response.status}`);
+                            }
+                        } catch (error) {
+                            // 记录API请求失败次数
+                            sessionStorage.setItem('apiFailCount', (apiFailCount + 1).toString());
+                            console.error('验证登录状态失败:', error);
+                            // 如果失败次数未超过阈值，暂时不重定向，允许继续操作
+                            if (apiFailCount <= 4) {
+                                log('警告: 与服务器通信失败，但您可以继续使用。');
+                                return true;
+                            } else {
+                                log('无法连接服务器，请检查网络或重新登录');
+                                return false;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('检查登录状态出错:', error);
+                        return false;
+                    }
+                }
+                
                 function logout() {
                     localStorage.removeItem('lastVerifyTime');
                     localStorage.removeItem('isLoggedIn');
