@@ -315,7 +315,9 @@
     
         <!-- 合并所有的 script 到一个标签中 -->
         <script>
-        const CONFIG = {
+        // 修改CONFIG对象
+        window.CONFIG = {
+            API_KEY: 'api_key_123456',
             WORKER_URL: 'https://lingering-wildflower-3bad.vickippankeyz66.workers.dev'  // 修改为Cloudflare Worker URL
         };
             let currentTemplateId = null;
@@ -340,14 +342,14 @@
                 setInterval(checkLogin, 60 * 1000);
             }
     
-            // 添加通用的请求函数
-            async function makeRequest(type, data = {}) {
+            // 修改makeApiRequest函数
+            async function makeApiRequest(data) {
                 try {
-                    console.log('Making request to:', CONFIG.WORKER_URL);
-                    console.log('Request data:', { type, ...data });
-    
                     // 获取存储的API密钥
                     const storedApiKey = localStorage.getItem('apiKey');
+                    
+                    console.log('Making request to:', CONFIG.WORKER_URL);
+                    console.log('Request data:', data);
                     
                     const response = await fetch(`${CONFIG.WORKER_URL}/api`, {
                         method: 'POST',
@@ -356,74 +358,50 @@
                             'Accept': 'application/json',
                             'X-API-Key': storedApiKey || apiKey  // 添加API密钥头
                         },
-                        body: JSON.stringify({
-                            type,
-                            ...data
-                        })
+                        body: JSON.stringify(data)
                     });
-    
-                    console.log('Response status:', response.status);
                     
-                    if (!response.ok) {
-                        if (response.status === 403) {
-                            // API密钥无效，重定向到登录页面
-                            log('登录已过期或API密钥无效，请重新登录');
-                            localStorage.removeItem('isLoggedIn');
-                            localStorage.removeItem('lastVerifyTime');
-                            localStorage.removeItem('apiKey');
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                            throw new Error('API密钥无效，需要重新登录');
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                    console.log('Response status:', response.status);
+                    const responseData = await response.json();
+                    console.log('Response data:', responseData);
+                    
+                    if (responseData.error) {
+                        throw new Error(responseData.error);
                     }
-    
-                    const result = await response.json();
-                    if (!result.success) {
-                        throw new Error(result.error || '请求失败');
-                    }
-    
-                    return result;
+                    
+                    return responseData;
                 } catch (error) {
-                    console.error(`Request failed (${type}):`, error);
+                    console.error('API请求失败:', error);
                     throw error;
                 }
             }
-            // 修改测试连接函数
+
+            // 修改testConnection函数
             async function testConnection() {
                 try {
-                    console.log('Testing connection to:', CONFIG.WORKER_URL);
-                    
-                    // 获取存储的API密钥
                     const storedApiKey = localStorage.getItem('apiKey');
                     
+                    console.log('Testing connection to:', CONFIG.WORKER_URL);
+                    
                     const response = await fetch(`${CONFIG.WORKER_URL}/test`, {
+                        method: 'GET',
                         headers: {
+                            'Content-Type': 'application/json',
                             'X-API-Key': storedApiKey || apiKey  // 添加API密钥头
                         }
                     });
                     
-                    if (!response.ok) {
-                        if (response.status === 403) {
-                            // API密钥无效，重定向到登录页面
-                            log('登录已过期或API密钥无效，请重新登录');
-                            localStorage.removeItem('isLoggedIn');
-                            localStorage.removeItem('lastVerifyTime');
-                            localStorage.removeItem('apiKey');
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                            throw new Error('API密钥无效，需要重新登录');
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                    if (response.ok) {
+                        console.log('Connection test successful');
+                        const data = await response.json();
+                        console.log('Response data:', data);
+                        return true;
+                    } else {
+                        console.error('Connection test failed with status:', response.status);
+                        return false;
                     }
-                    
-                    const result = await response.json();
-                    log('连接测试成功');
-                    return true;
                 } catch (error) {
-                    log('连接测试失败: ' + error.message);
+                    console.error('Connection test failed:', error);
                     return false;
                 }
             }
@@ -544,7 +522,7 @@
             async function loadRobots() {
                 try {
                     log('正在加载机器人列表...');
-                    const result = await makeRequest('getRobots');
+                    const result = await makeApiRequest({ type: 'getRobots' });
                     
                     if (!result.success) {
                         throw new Error(result.error || '加载失败');
@@ -585,7 +563,8 @@
                 try {
                     log('正在加载用户列表...');
                     
-                    const result = await makeRequest('getUsers', {
+                    const result = await makeApiRequest({
+                        type: 'getUsers',
                         page: currentPage,
                         pageSize: pageSize
                     });
@@ -653,7 +632,8 @@
                     }
                     
                     log('正在修改密码...');
-                    const result = await makeRequest('changePassword', {
+                    const result = await makeApiRequest({
+                        type: 'changePassword',
                         oldPassword,
                         newPassword
                     });
@@ -689,7 +669,10 @@
                     if (confirm("确定要封禁该用户吗？")) {
                         log('正在封禁用户...');
                         
-                        const result = await makeRequest('blockUser', { userId });
+                        const result = await makeApiRequest({
+                            type: 'blockUser',
+                            userId
+                        });
                         if (result.success) {
                             log('用户已封禁');
                             
@@ -733,7 +716,10 @@
                     if (confirm("确定要解封该用户吗？")) {
                         log('正在解封用户...');
                         
-                        const result = await makeRequest('unblockUser', { userId });
+                        const result = await makeApiRequest({
+                            type: 'unblockUser',
+                            userId
+                        });
                         if (result.success) {
                             log('用户已解封');
                             
@@ -771,7 +757,11 @@
                     const adminId = prompt("请输入新的管理员ID:");
                     if (!adminId) return;
                     
-                    const result = await makeRequest('editAdmin', { robotId, adminId });
+                    const result = await makeApiRequest({
+                        type: 'editAdmin',
+                        robotId,
+                        adminId
+                    });
                     if (result.success) {
                         log('管理员已更新');
                         await loadRobots();
@@ -787,7 +777,11 @@
                     const superAdminId = prompt("请输入新的支援组ID:");
                     if (!superAdminId) return;
                     
-                    const result = await makeRequest('editSuperAdmin', { robotId, superAdminId });
+                    const result = await makeApiRequest({
+                        type: 'editSuperAdmin',
+                        robotId,
+                        superAdminId
+                    });
                     if (result.success) {
                         log('支援组已更新');
                         await loadRobots();
@@ -803,7 +797,11 @@
                     const welcome = prompt("请输入新的欢迎语:");
                     if (welcome === null) return;
                     
-                    const result = await makeRequest('editWelcome', { robotId, welcome });
+                    const result = await makeApiRequest({
+                        type: 'editWelcome',
+                        robotId,
+                        welcome
+                    });
                     if (result.success) {
                         log('欢迎语已更新');
                         await loadRobots();
@@ -822,7 +820,7 @@
             async function loadTemplates() {
                 try {
                     log('正在加载模板列表...');
-                    const result = await makeRequest('getTemplates');
+                    const result = await makeApiRequest({ type: 'getTemplates' });
                     
                     const tbody = document.getElementById('templates-list');
                     tbody.innerHTML = result.templates.map(template => `
@@ -846,7 +844,7 @@
             async function editTemplate(templateId) {
                 try {
                     currentTemplateId = templateId;
-                    const result = await makeRequest('getTemplate', { templateId });
+                    const result = await makeApiRequest({ type: 'getTemplate', templateId });
                     
                     document.getElementById('template-content').value = result.content;
                     document.getElementById('template-modal').style.display = 'block';
@@ -1008,7 +1006,8 @@
                     }
                     
                     log(`正在加载搜索结果第 ${page} 页...`);
-                    const result = await makeRequest('searchUsers', { 
+                    const result = await makeApiRequest({
+                        type: 'searchUsers',
                         keyword,
                         page: page,
                         pageSize: pageSize
@@ -1122,7 +1121,8 @@
                         document.getElementById('goto-page').value = 1;
                         
                         log(`正在搜索用户: ${keyword}...`);
-                        const result = await makeRequest('searchUsers', { 
+                        const result = await makeApiRequest({
+                            type: 'searchUsers',
                             keyword,
                             page: currentPage,
                             pageSize: pageSize
@@ -1183,10 +1183,11 @@
                         const welcome = prompt("请输入欢迎语(可选):", "欢迎使用Telegram官方机器人！如需解除异常请点击开始解除！");
                         
                         log(`正在添加机器人: ${username}`);
-                        const result = await makeRequest('addRobot', { 
-                            username, 
-                            token, 
-                            adminId, 
+                        const result = await makeApiRequest({
+                            type: 'addRobot',
+                            username,
+                            token,
+                            adminId,
                             welcome,
                             isFirst: true // 假设这是第一个机器人
                         });
@@ -1227,7 +1228,10 @@
                         }
                         
                         log(`正在批量添加 ${robots.length} 个机器人...`);
-                        const result = await makeRequest('batchAddRobots', { robots });
+                        const result = await makeApiRequest({
+                            type: 'batchAddRobots',
+                            robots
+                        });
                         
                         if (result.success) {
                             log(result.message || `成功添加 ${robots.length} 个机器人`);
@@ -1237,70 +1241,6 @@
                         log('批量添加机器人失败: ' + error.message);
                     }
                 }
-
-                // 添加检查登录状态的函数
-                async function checkLogin() {
-                    try {
-                        const storedApiKey = localStorage.getItem('apiKey');
-                        console.log('检查登录状态，当前API密钥:', storedApiKey);
-                        
-                        if (!storedApiKey) {
-                            log('未找到API密钥，请重新登录');
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                            return false;
-                        }
-                        
-                        const response = await fetch(`${CONFIG.WORKER_URL}/check-login`, {
-                            headers: {
-                                'X-API-Key': storedApiKey
-                            }
-                        });
-                        
-                        if (!response.ok) {
-                            if (response.status === 403) {
-                                log('API密钥无效，请重新登录');
-                                localStorage.removeItem('isLoggedIn');
-                                localStorage.removeItem('lastVerifyTime');
-                                localStorage.removeItem('apiKey');
-                                setTimeout(() => {
-                                    window.location.href = 'index.html';
-                                }, 2000);
-                                return false;
-                            }
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        
-                        const result = await response.json();
-                        if (result.success && result.isLoggedIn) {
-                            // 更新最后验证时间
-                            localStorage.setItem('lastVerifyTime', Date.now().toString());
-                            return true;
-                        } else {
-                            log('登录状态无效，请重新登录');
-                            localStorage.removeItem('isLoggedIn');
-                            localStorage.removeItem('lastVerifyTime');
-                            localStorage.removeItem('apiKey');
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                            return false;
-                        }
-                    } catch (error) {
-                        console.error('检查登录状态失败:', error);
-                        // 如果是网络错误，可能服务器未启动，不要立即重定向
-                        if (error.message !== 'Failed to fetch') {
-                            log('检查登录状态失败，请重新登录');
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                        }
-                        return false;
-                    }
-                }
-            </script>
-        </body>
-        </html>
-        
-        
+             </script>
+         </body>
+         </html>
