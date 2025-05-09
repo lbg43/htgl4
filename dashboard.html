@@ -631,6 +631,15 @@
                         return;
                     }
                     
+                    // 获取当前使用的密码
+                    const currentPassword = localStorage.getItem('currentPassword') || 'admin123';
+                    
+                    // 验证旧密码是否正确
+                    if (oldPassword !== currentPassword) {
+                        log('旧密码不正确');
+                        return;
+                    }
+                    
                     log('正在修改密码...');
                     const result = await makeApiRequest({
                         type: 'changePassword',
@@ -639,10 +648,11 @@
                     });
                     
                     if (result.success) {
-                        // 更新本地存储的密码
+                        // 将新密码保存到 localStorage
                         localStorage.setItem('currentPassword', newPassword);
                         
-                        log('密码修改成功，请重新登录');
+                        log('密码修改成功，请使用新密码下次登录');
+                        alert('密码已成功修改为: ' + newPassword + '\n请记住您的新密码，下次登录需要使用它。');
                         closePasswordModal();
                         
                         // 3秒后退出登录
