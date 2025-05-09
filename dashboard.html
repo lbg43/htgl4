@@ -995,6 +995,9 @@
                     
                     // 使用特定的错误处理版本的请求函数
                     try {
+                        console.log('保存模板请求开始，URL:', `${CONFIG.WORKER_URL}/endpoint`);
+                        
+                        // 添加模式参数，防止CORS问题
                         const response = await fetch(`${CONFIG.WORKER_URL}/endpoint`, {
                             method: 'POST',
                             headers: {
@@ -1002,6 +1005,8 @@
                                 'Accept': 'application/json',
                                 'X-API-Key': storedApiKey
                             },
+                            mode: 'cors', // 确保使用CORS模式
+                            credentials: 'same-origin', // 不发送cookie以简化CORS预检请求
                             body: JSON.stringify({
                                 type: 'updateTemplate',
                                 templateId: currentTemplateId,
