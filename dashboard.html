@@ -348,9 +348,12 @@
                     // 获取存储的API密钥
                     const storedApiKey = localStorage.getItem('apiKey');
                     
-                    console.log('Making request to:', CONFIG.WORKER_URL);
-                    console.log('Request data:', data);
+                    console.log(`发送API请求到: ${CONFIG.WORKER_URL}/api`);
+                    console.log('请求类型:', data.type);
+                    console.log('请求数据:', data);
+                    console.log('使用API密钥:', storedApiKey ? '已设置' : '未设置');
                     
+                    const startTime = Date.now();
                     const response = await fetch(`${CONFIG.WORKER_URL}/api`, {
                         method: 'POST',
                         headers: {
@@ -360,10 +363,16 @@
                         },
                         body: JSON.stringify(data)
                     });
+                    const endTime = Date.now();
                     
-                    console.log('Response status:', response.status);
+                    console.log(`API响应状态: ${response.status} ${response.statusText}, 耗时: ${endTime - startTime}ms`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误! 状态: ${response.status}`);
+                    }
+                    
                     const responseData = await response.json();
-                    console.log('Response data:', responseData);
+                    console.log('API响应数据:', responseData);
                     
                     if (responseData.error) {
                         throw new Error(responseData.error);
@@ -371,7 +380,8 @@
                     
                     return responseData;
                 } catch (error) {
-                    console.error('API请求失败:', error);
+                    console.error(`API请求失败 (${data.type}):`, error);
+                    log(`API请求失败: ${error.message}`);
                     throw error;
                 }
             }
@@ -541,14 +551,17 @@
                             <td>${robot.superAdminId || '-'}</td>
                             <td>${robot.welcome || '-'}</td>
                             <td>
-                                <button class="btn btn-primary" onclick="editAdmin('${robot.id}')">管理员</button>
-                                <button class="btn btn-primary" onclick="editSuperAdmin('${robot.id}')">支援组</button>
-                                <button class="btn btn-primary" onclick="editWelcome('${robot.id}')">欢迎语</button>
-                                <button class="btn btn-primary" onclick="viewUser('${robot.id}')">查看用户</button>
+                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editAdmin('${robot.id}'); return false;">管理员</button>
+                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editSuperAdmin('${robot.id}'); return false;">支援组</button>
+                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); editWelcome('${robot.id}'); return false;">欢迎语</button>
+                                <button class="btn btn-primary" onclick="event.preventDefault(); event.stopPropagation(); viewUser('${robot.id}'); return false;">查看用户</button>
                             </td>
                         </tr>
                     `).join('');
                     log('机器人列表加载完成');
+                    
+                    // 添加调试信息
+                    console.log('机器人列表已加载，当前机器人数量:', result.robots.length);
                 } catch (error) {
                     if (error.message === 'Failed to fetch') {
                         log('无法连接到服务器，请检查：\n1. Worker 服务是否启动\n2. Worker URL 是否正确配置\n3. 网络连接是否正常');
@@ -764,60 +777,108 @@
             // 编辑管理员
             async function editAdmin(robotId) {
                 try {
-                    const adminId = prompt("请输入新的管理员ID:");
-                    if (!adminId) return;
+                    console.log('准备编辑管理员，robotId:', robotId);
+                    log('打开管理员ID编辑对话框');
                     
+                    const adminId = prompt("请输入新的管理员ID:");
+                    console.log('用户输入的管理员ID:', adminId);
+                    
+                    if (!adminId) {
+                        log('已取消编辑管理员');
+                        return;
+                    }
+                    
+                    log('正在更新管理员ID...');
                     const result = await makeApiRequest({
                         type: 'editAdmin',
                         robotId,
                         adminId
                     });
-                    if (result.success) {
-                        log('管理员已更新');
+                    
+                    console.log('服务器响应:', result);
+                    
+                    if (result && result.success) {
+                        log('管理员已更新为: ' + adminId);
                         await loadRobots();
+                    } else {
+                        throw new Error(result?.error || '未知错误');
                     }
                 } catch (error) {
+                    console.error('编辑管理员出错:', error);
                     log('更新管理员失败: ' + error.message);
+                    alert('更新管理员失败: ' + error.message);
                 }
             }
     
             // 编辑支援组
             async function editSuperAdmin(robotId) {
                 try {
-                    const superAdminId = prompt("请输入新的支援组ID:");
-                    if (!superAdminId) return;
+                    console.log('准备编辑支援组，robotId:', robotId);
+                    log('打开支援组ID编辑对话框');
                     
+                    const superAdminId = prompt("请输入新的支援组ID:");
+                    console.log('用户输入的支援组ID:', superAdminId);
+                    
+                    if (!superAdminId) {
+                        log('已取消编辑支援组');
+                        return;
+                    }
+                    
+                    log('正在更新支援组ID...');
                     const result = await makeApiRequest({
                         type: 'editSuperAdmin',
                         robotId,
                         superAdminId
                     });
-                    if (result.success) {
-                        log('支援组已更新');
+                    
+                    console.log('服务器响应:', result);
+                    
+                    if (result && result.success) {
+                        log('支援组已更新为: ' + superAdminId);
                         await loadRobots();
+                    } else {
+                        throw new Error(result?.error || '未知错误');
                     }
                 } catch (error) {
+                    console.error('编辑支援组出错:', error);
                     log('更新支援组失败: ' + error.message);
+                    alert('更新支援组失败: ' + error.message);
                 }
             }
     
             // 编辑欢迎语
             async function editWelcome(robotId) {
                 try {
-                    const welcome = prompt("请输入新的欢迎语:");
-                    if (welcome === null) return;
+                    console.log('准备编辑欢迎语，robotId:', robotId);
+                    log('打开欢迎语编辑对话框');
                     
+                    const welcome = prompt("请输入新的欢迎语:");
+                    console.log('用户输入的欢迎语:', welcome);
+                    
+                    if (welcome === null) {
+                        log('已取消编辑欢迎语');
+                        return;
+                    }
+                    
+                    log('正在更新欢迎语...');
                     const result = await makeApiRequest({
                         type: 'editWelcome',
                         robotId,
                         welcome
                     });
-                    if (result.success) {
+                    
+                    console.log('服务器响应:', result);
+                    
+                    if (result && result.success) {
                         log('欢迎语已更新');
                         await loadRobots();
+                    } else {
+                        throw new Error(result?.error || '未知错误');
                     }
                 } catch (error) {
+                    console.error('编辑欢迎语出错:', error);
                     log('更新欢迎语失败: ' + error.message);
+                    alert('更新欢迎语失败: ' + error.message);
                 }
             }
     
