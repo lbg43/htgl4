@@ -896,6 +896,10 @@
                     log('正在加载模板列表...');
                     const result = await makeApiRequest({ type: 'getTemplates' });
                     
+                    if (!result || !result.success || !result.templates) {
+                        throw new Error('加载模板失败，返回数据格式错误');
+                    }
+                    
                     const tbody = document.getElementById('templates-list');
                     tbody.innerHTML = result.templates.map(template => `
                         <tr>
@@ -907,8 +911,9 @@
                             </tr>
                         `).join('');
                     
-                    log('模板列表加载完成');
+                    log(`模板列表加载完成，共 ${result.templates.length} 个模板`);
                 } catch (error) {
+                    console.error('加载模板失败:', error);
                     log('加载模板失败: ' + error.message);
                     document.getElementById('templates-list').innerHTML = '<tr><td colspan="4">加载失败</td></tr>';
                 }
@@ -917,12 +922,22 @@
             // 编辑模板
             async function editTemplate(templateId) {
                 try {
+                    log(`正在获取模板 ${templateId} 内容...`);
                     currentTemplateId = templateId;
-                    const result = await makeApiRequest({ type: 'getTemplate', templateId });
+                    const result = await makeApiRequest({ 
+                        type: 'getTemplate', 
+                        templateId: templateId 
+                    });
+                    
+                    if (!result || !result.success) {
+                        throw new Error(result?.error || '获取模板失败');
+                    }
                     
                     document.getElementById('template-content').value = result.content;
                     document.getElementById('template-modal').style.display = 'block';
+                    log(`模板 ${templateId} 内容加载完成`);
                 } catch (error) {
+                    console.error('获取模板失败:', error);
                     log('获取模板失败: ' + error.message);
                 }
             }
@@ -953,48 +968,22 @@
                         return;
                     }
                     
-                    // 使用特定的错误处理版本的请求函数
-                    try {
-                        console.log('保存模板请求开始，URL:', `${CONFIG.WORKER_URL}/endpoint`);
-                        
-                        // 使用与其他API请求相同的模式进行请求
-                        const response = await fetch(`${CONFIG.WORKER_URL}/endpoint`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-API-Key': storedApiKey
-                            },
-                            mode: 'cors', // 确保使用CORS模式
-                            credentials: 'omit', // 不发送cookie以简化CORS预检请求
-                            body: JSON.stringify({
-                                type: 'updateTemplate',
-                                templateId: currentTemplateId,
-                                content
-                            })
-                        });
-                        
-                        if (!response.ok) {
-                            if (response.status === 403) {
-                                log('登录已过期，请在新窗口重新登录后再尝试');
-                                return;
-                            }
-                            throw new Error(`服务器响应错误: ${response.status}`);
-                        }
-                        
-                        const result = await response.json();
-                        if (!result.success) {
-                            throw new Error(result.error || '保存失败');
-                        }
-                        
+                    // 使用API路由替代直接访问endpoint
+                    const response = await makeApiRequest({
+                        type: 'updateTemplate',
+                        templateId: currentTemplateId,
+                        content: content
+                    });
+                    
+                    if (response.success) {
                         log('模板已成功保存');
                         closeTemplateModal();
                         loadTemplates();
-                    } catch (error) {
-                        log('保存模板失败: ' + error.message);
+                    } else {
+                        log('保存模板失败: ' + (response.error || '未知错误'));
                     }
                 } catch (error) {
-                    log('操作失败: ' + error.message);
+                    log('保存模板失败: ' + error.message);
                 }
             }
     
