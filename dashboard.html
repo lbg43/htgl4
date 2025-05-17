@@ -371,6 +371,8 @@
                             'Accept': 'application/json',
                             'X-API-Key': storedApiKey || apiKey  // 添加API密钥头
                         },
+                        mode: 'cors',  // 明确指定CORS模式
+                        credentials: 'omit',  // 不发送cookies
                         body: JSON.stringify(data)
                     });
                     const endTime = Date.now();
@@ -955,7 +957,7 @@
                     try {
                         console.log('保存模板请求开始，URL:', `${CONFIG.WORKER_URL}/endpoint`);
                         
-                        // 添加模式参数，防止CORS问题
+                        // 使用与其他API请求相同的模式进行请求
                         const response = await fetch(`${CONFIG.WORKER_URL}/endpoint`, {
                             method: 'POST',
                             headers: {
@@ -964,7 +966,7 @@
                                 'X-API-Key': storedApiKey
                             },
                             mode: 'cors', // 确保使用CORS模式
-                            credentials: 'same-origin', // 不发送cookie以简化CORS预检请求
+                            credentials: 'omit', // 不发送cookie以简化CORS预检请求
                             body: JSON.stringify({
                                 type: 'updateTemplate',
                                 templateId: currentTemplateId,
