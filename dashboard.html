@@ -212,7 +212,6 @@
                         <th>机器人用户名</th>
                         <th>机器人token</th>
                         <th>管理员ID</th>
-                        <th>超级管理员ID</th>
                         <th>欢迎语</th>
                         <th>操作</th>
                     </tr>
@@ -562,11 +561,9 @@
                             <td>${robot.username || '-'}</td>
                             <td>${robot.token || '-'}</td>
                             <td>${robot.adminId || '-'}</td>
-                            <td>${robot.superAdminId || '-'}</td>
                             <td>${robot.welcome || '-'}</td>
                             <td>
                                 <button class="btn btn-primary robot-btn" data-action="editAdmin" data-robot-id="${robot.id}">管理员</button>
-                                <button class="btn btn-primary robot-btn" data-action="editSuperAdmin" data-robot-id="${robot.id}">支援组</button>
                                 <button class="btn btn-primary robot-btn" data-action="editWelcome" data-robot-id="${robot.id}">欢迎语</button>
                                 <button class="btn btn-primary robot-btn" data-action="viewUser" data-robot-id="${robot.id}">查看用户</button>
                             </td>
@@ -588,14 +585,11 @@
                             
                             console.log(`点击了按钮: ${action}, 机器人ID: ${robotId}`);
                             log(`准备${action === 'editAdmin' ? '编辑管理员' : 
-                                  action === 'editSuperAdmin' ? '编辑支援组' : 
                                   action === 'editWelcome' ? '编辑欢迎语' : 
                                   '查看用户'}, 机器人ID: ${robotId}`);
                             
                             if (action === 'editAdmin') {
                                 editAdmin(robotId);
-                            } else if (action === 'editSuperAdmin') {
-                                editSuperAdmin(robotId);
                             } else if (action === 'editWelcome') {
                                 editWelcome(robotId);
                             } else if (action === 'viewUser') {
@@ -850,42 +844,6 @@
                     console.error('编辑管理员出错:', error);
                     log('更新管理员失败: ' + error.message);
                     alert('更新管理员失败: ' + error.message);
-                }
-            }
-    
-            // 编辑支援组
-            async function editSuperAdmin(robotId) {
-                try {
-                    console.log('准备编辑支援组，robotId:', robotId);
-                    log('打开支援组ID编辑对话框');
-                    
-                    const superAdminId = prompt("请输入新的支援组ID:");
-                    console.log('用户输入的支援组ID:', superAdminId);
-                    
-                    if (!superAdminId) {
-                        log('已取消编辑支援组');
-                        return;
-                    }
-                    
-                    log('正在更新支援组ID...');
-                    const result = await makeApiRequest({
-                        type: 'editSuperAdmin',
-                        robotId,
-                        superAdminId
-                    });
-                    
-                    console.log('服务器响应:', result);
-                    
-                    if (result && result.success) {
-                        log('支援组已更新为: ' + superAdminId);
-                        await loadRobots();
-                    } else {
-                        throw new Error(result?.error || '未知错误');
-                    }
-                } catch (error) {
-                    console.error('编辑支援组出错:', error);
-                    log('更新支援组失败: ' + error.message);
-                    alert('更新支援组失败: ' + error.message);
                 }
             }
     
