@@ -1041,7 +1041,7 @@
                 log('已清除搜索状态');
             }
             
-            // 修改changePage函数，使其在页码变化后自动加载数据
+            // 修改changePage函数，使其和gotoPage保持一致的行为
             function changePage(direction) {
                 const oldPage = currentPage;
                 const totalPages = Math.ceil(totalUsers / pageSize);
@@ -1055,14 +1055,11 @@
                     return;
                 }
                 
-                // 更新页码显示
+                // 只更新页码显示，不加载数据
                 document.getElementById('goto-page').value = currentPage;
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
                 updatePagination(); // 更新分页按钮状态
-                log(`正在加载第 ${currentPage} 页数据...`);
-                
-                // 自动加载当前页数据
-                loadCurrentPage();
+                log(`已切换到第 ${currentPage} 页，点击"加载"按钮加载数据`);
             }
             
             // 跳转到指定页码
@@ -1083,14 +1080,11 @@
                     currentPage = pageNum;
                 }
                 
-                // 更新页码显示
+                // 只更新页码显示，不加载数据，不跳转页面
                 document.getElementById('goto-page').value = currentPage;
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
                 updatePagination(); // 更新分页按钮状态
-                log(`正在加载第 ${currentPage} 页数据...`);
-                
-                // 自动加载当前页数据
-                loadCurrentPage();
+                log(`已设置页码为第 ${currentPage} 页，点击"加载"按钮加载数据`);
             }
             
             // 搜索用户指定页
