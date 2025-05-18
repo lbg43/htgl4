@@ -1056,10 +1056,7 @@
                 } else {
                     return; // 已经是第一页或最后一页
                 }
-
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-                document.getElementById('goto-page').value = currentPage;
-
                 // 判断是否有搜索关键词
                 if (window.currentSearchKeyword) {
                     searchUsersPage(window.currentSearchKeyword, currentPage);
@@ -1136,9 +1133,6 @@
                                 </tr>
                             `).join('');
                             log(`搜索到 ${result.total} 个匹配用户，当前显示 ${result.users.length} 个`);
-                            
-                            // 更新页码输入框
-                            document.getElementById('goto-page').value = currentPage;
                             
                             // 显示分页控件
                             updatePagination();
