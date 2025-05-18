@@ -1091,8 +1091,8 @@
                         if (result.users.length === 0) {
                             tbody.innerHTML = '<tr><td colspan="5">未找到匹配的用户</td></tr>';
                             log('未找到匹配的用户');
-                            // 隐藏分页控件
-                            document.querySelector('.pagination').style.display = 'none';
+                            // 不要隐藏分页控件
+                            updatePagination();
                         } else {
                             tbody.innerHTML = result.users.map(user => `
                                 <tr data-user-id="${user.id}">
@@ -1124,32 +1124,16 @@
             }
             
             function updatePagination() {
-                // 禁用或启用上一页按钮
                 const prevButton = document.getElementById('prev-page');
-                if (currentPage <= 1) {
-                    prevButton.disabled = true;
-                    prevButton.classList.add('disabled');
-                } else {
-                    prevButton.disabled = false;
-                    prevButton.classList.remove('disabled');
-                }
-                
-                // 禁用或启用下一页按钮
                 const nextButton = document.getElementById('next-page');
-                const totalPages = Math.ceil(totalUsers / pageSize);
-                
-                // 显示总页数信息
+                const totalPages = Math.ceil(totalUsers / pageSize) || 1;
+
+                prevButton.disabled = currentPage <= 1;
+                nextButton.disabled = currentPage >= totalPages;
+
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-                
-                if (currentPage >= totalPages) {
-                    nextButton.disabled = true;
-                    nextButton.classList.add('disabled');
-                } else {
-                    nextButton.disabled = false;
-                    nextButton.classList.remove('disabled');
-                }
-                
-                // 确保分页区域可见
+
+                // 始终显示分页控件
                 document.querySelector('.pagination').style.display = 'block';
             }
                 
@@ -1267,8 +1251,8 @@
                             if (result.users.length === 0) {
                                 tbody.innerHTML = '<tr><td colspan="5">未找到匹配的用户</td></tr>';
                                 log('未找到匹配的用户');
-                                // 隐藏分页控件
-                                document.querySelector('.pagination').style.display = 'none';
+                                // 不要隐藏分页控件
+                                updatePagination();
                             } else {
                                 tbody.innerHTML = result.users.map(user => `
                                     <tr data-user-id="${user.id}">
