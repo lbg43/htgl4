@@ -1065,31 +1065,6 @@
                 }
             }
             
-            // 跳转到指定页码
-            function gotoPage() {
-                const pageInput = document.getElementById('goto-page');
-                const pageNum = parseInt(pageInput.value, 10);
-                
-                if (isNaN(pageNum) || pageNum < 1) {
-                    log('请输入有效的页码');
-                    return;
-                }
-                
-                const totalPages = Math.ceil(totalUsers / pageSize);
-                if (pageNum > totalPages) {
-                    log(`最大页码为 ${totalPages}，已自动修正为最后一页`);
-                    currentPage = totalPages;
-                } else {
-                    currentPage = pageNum;
-                }
-                
-                // 只更新页码显示，不加载数据，不跳转页面
-                document.getElementById('goto-page').value = currentPage;
-                document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-                updatePagination(); // 更新分页按钮状态
-                log(`已设置页码为第 ${currentPage} 页，点击"加载"按钮加载数据`);
-            }
-            
             // 搜索用户指定页
             async function searchUsersPage(keyword, page) {
                 try {
@@ -1275,7 +1250,6 @@
                         
                         // 搜索时重置为第一页
                         currentPage = 1;
-                        document.getElementById('goto-page').value = 1;
                         
                         log(`正在搜索用户: ${keyword}...`);
                         const result = await makeApiRequest({
