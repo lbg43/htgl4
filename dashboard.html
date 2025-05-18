@@ -265,13 +265,6 @@
         <button class="btn btn-primary" onclick="changePage('prev')" id="prev-page">上一页</button>
         <span id="page-info" style="margin: 0 15px;">第 1 页</span>
         <button class="btn btn-primary" onclick="changePage('next')" id="next-page">下一页</button>
-        <!-- 修改跳转到指定页面的控件 -->
-        <span style="margin-left: 15px;">
-            跳转到 <input type="number" id="goto-page" min="1" style="width: 60px; padding: 4px; text-align: center;" value="1">
-            <button class="btn btn-primary" onclick="gotoPage()">确定</button>
-            <button class="btn btn-success" onclick="loadCurrentPage()">加载</button>
-            <button class="btn btn-danger" onclick="clearSearchState()">清除搜索</button>
-        </span>
     </div>
 </div>
         <!-- 在系统设置标签页中移除修改密码和Worker URL部分 -->
@@ -549,7 +542,6 @@
                     window.currentSearchKeyword = null;
                     // 重置为第一页
                     currentPage = 1;
-                    document.getElementById('goto-page').value = 1;
                 }
             
                 currentTab = tab;
@@ -643,7 +635,6 @@
                 // 显示加载中提示
                 document.getElementById('users-list').innerHTML = '<tr><td colspan="5" style="text-align: center;">加载中...</td></tr>';
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页`;
-                document.getElementById('goto-page').value = currentPage;
 
                 try {
                     log(`加载用户列表: 页码=${page}, 每页数量=${pageSize}`);
@@ -675,7 +666,6 @@
                         totalUsers = result.total || result.users.length;
                         const totalPages = Math.ceil(totalUsers / pageSize) || 1;
                         document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-                        document.getElementById('goto-page').value = currentPage;
 
                         // 更新分页按钮状态
                         document.getElementById('prev-page').disabled = currentPage <= 1;
