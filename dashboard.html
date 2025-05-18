@@ -635,44 +635,59 @@
                 }
             }
     
-            async function loadUsers() {
+            // 修改后的 loadUsers 函数
+            async function loadUsers(page) {
+                if (!page) page = 1;
+                currentPage = page;
+
+                // 显示加载中提示
+                document.getElementById('users-list').innerHTML = '<tr><td colspan="5" style="text-align: center;">加载中...</td></tr>';
+                document.getElementById('page-info').textContent = `第 ${currentPage} 页`;
+                document.getElementById('goto-page').value = currentPage;
+
                 try {
-                    log('正在加载用户列表...');
-                    
+                    log(`加载用户列表: 页码=${page}, 每页数量=${pageSize}`);
                     const result = await makeApiRequest({
                         type: 'getUsers',
-                        page: currentPage,
+                        page: page,
                         pageSize: pageSize
                     });
-                    
-                    if (!result.success) {
-                        throw new Error(result.error || '加载失败');
+
+                    if (result.success) {
+                        log(`获取用户成功: 共${result.total}条记录, 当前第${result.page || currentPage}/${Math.ceil(result.total / pageSize)}页`);
+                        // 渲染用户列表
+                        const tbody = document.getElementById('users-list');
+                        tbody.innerHTML = result.users.map(user => `
+                            <tr data-user-id="${user.id}">
+                                <td>${user.id || '-'}</td>
+                                <td>${user.username || '-'}</td>
+                                <td>${user.nickname || '-'}</td>
+                                <td>${user.registerTime || '-'}</td>
+                                <td>
+                                    ${user.isBlocked 
+                                        ? `<button class="btn btn-success" onclick="return unblockUser('${user.id}', event)">解封</button>` 
+                                        : `<button class="btn btn-danger" onclick="return blockUser('${user.id}', event)">封禁</button>`}
+                                </td>
+                            </tr>
+                        `).join('');
+
+                        // 更新分页信息
+                        totalUsers = result.total || result.users.length;
+                        const totalPages = Math.ceil(totalUsers / pageSize) || 1;
+                        document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                        document.getElementById('goto-page').value = currentPage;
+
+                        // 更新分页按钮状态
+                        document.getElementById('prev-page').disabled = currentPage <= 1;
+                        document.getElementById('next-page').disabled = currentPage >= totalPages;
+                    } else {
+                        document.getElementById('users-list').innerHTML = 
+                            `<tr><td colspan="5" style="text-align: center;">加载失败: ${result.error || '未知错误'}</td></tr>`;
                     }
-                    
-                    totalUsers = result.total || result.users.length;
-                    const tbody = document.getElementById('users-list');
-                    tbody.innerHTML = result.users.map(user => `
-                        <tr data-user-id="${user.id}">
-                            <td>${user.id || '-'}</td>
-                            <td>${user.username || '-'}</td>
-                            <td>${user.nickname || '-'}</td>
-                            <td>${user.registerTime || '-'}</td>
-                            <td>
-                                ${user.isBlocked 
-                                    ? `<button class="btn btn-success" onclick="return unblockUser('${user.id}', event)">解封</button>` 
-                                    : `<button class="btn btn-danger" onclick="return blockUser('${user.id}', event)">封禁</button>`}
-                            </td>
-                        </tr>
-                    `).join('');
-                    
-                    // 更新页码输入框
-                    document.getElementById('goto-page').value = currentPage;
-                    
-                    updatePagination();
-                    log(`成功加载第 ${currentPage} 页用户数据，共 ${totalUsers} 条记录`);
                 } catch (error) {
                     log('加载用户列表失败: ' + error.message);
-                    document.getElementById('users-list').innerHTML = '<tr><td colspan="5">加载失败</td></tr>';
+                    document.getElementById('users-list').innerHTML = 
+                        `<tr><td colspan="5" style="text-align: center;">加载失败: ${error.message}</td></tr>`;
                 }
             }
     
@@ -1043,23 +1058,24 @@
             
             // 修改changePage函数，使其和gotoPage保持一致的行为
             function changePage(direction) {
-                const oldPage = currentPage;
-                const totalPages = Math.ceil(totalUsers / pageSize);
-                
+                const totalPages = Math.ceil(totalUsers / pageSize) || 1;
                 if (direction === 'prev' && currentPage > 1) {
                     currentPage--;
                 } else if (direction === 'next' && currentPage < totalPages) {
                     currentPage++;
                 } else {
-                    // 已经在第一页或最后一页
-                    return;
+                    return; // 已经是第一页或最后一页
                 }
-                
-                // 只更新页码显示，不加载数据
-                document.getElementById('goto-page').value = currentPage;
+
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-                updatePagination(); // 更新分页按钮状态
-                log(`已切换到第 ${currentPage} 页，点击"加载"按钮加载数据`);
+                document.getElementById('goto-page').value = currentPage;
+
+                // 判断是否有搜索关键词
+                if (window.currentSearchKeyword) {
+                    searchUsersPage(window.currentSearchKeyword, currentPage);
+                } else {
+                    loadUsers(currentPage);
+                }
             }
             
             // 跳转到指定页码
