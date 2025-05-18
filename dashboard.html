@@ -514,7 +514,7 @@
                     const isConnected = await testConnection();
                     if (isConnected) {
                         showTab('robots');
-                        startRealtimeUpdates();
+                        // startRealtimeUpdates(); // 不再自动刷新
                     } else {
                         log('无法连接到服务器，请检查配置');
                         showTab('settings');
