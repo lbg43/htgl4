@@ -1394,8 +1394,11 @@
                     const username = localStorage.getItem('adminUsername');
                     
                     if (!currentSessionId || !username) {
+                        console.log('会话检查失败: 本地存储中缺少会话ID或用户名');
                         return false;
                     }
+                    
+                    console.log(`正在检查会话有效性: sessionId=${currentSessionId}, username=${username}`);
                     
                     // 调用服务器API检查会话是否有效
                     const response = await fetch(`${CONFIG.WORKER_URL}/session/check`, {
@@ -1410,17 +1413,29 @@
                     });
                     
                     if (!response.ok) {
-                        console.error('会话检查请求失败:', response.status);
+                        console.error('会话检查请求失败:', response.status, response.statusText);
+                        // 如果是服务器错误，我们认为会话有效，避免因服务器问题踢出用户
+                        if (response.status >= 500) {
+                            console.log('服务器错误，假定会话有效');
+                            return true;
+                        }
                         return false;
                     }
                     
                     const result = await response.json();
                     console.log('会话检查结果:', result);
                     
+                    // 如果服务器返回警告信息，说明KV存储可能有问题
+                    if (result.warning) {
+                        console.warn('服务器警告:', result.warning);
+                    }
+                    
                     return result.isValid;
                 } catch (error) {
                     console.error('检查会话有效性出错:', error);
-                    return false; // 出错时认为会话无效，需要重新登录
+                    // 网络错误或其他意外错误，我们认为会话有效，避免因网络问题踢出用户
+                    console.log('发生错误，假定会话有效');
+                    return true;
                 }
             }
             
@@ -1431,13 +1446,33 @@
                     clearInterval(sessionCheckInterval);
                 }
                 
+                // 记录连续失败次数
+                let consecutiveFailures = 0;
+                const MAX_FAILURES = 3; // 连续失败3次才登出
+                
                 // 每10秒检查一次会话状态
                 sessionCheckInterval = setInterval(async () => {
-                    const isValid = await checkSessionValid();
-                    if (!isValid) {
-                        // 如果会话无效，显示提示并登出
-                        alert('您的账号已在其他设备登录，将自动退出登录');
-                        logout();
+                    try {
+                        const isValid = await checkSessionValid();
+                        
+                        if (isValid) {
+                            // 会话有效，重置失败计数
+                            consecutiveFailures = 0;
+                        } else {
+                            // 会话无效，增加失败计数
+                            consecutiveFailures++;
+                            console.log(`会话检查失败 (${consecutiveFailures}/${MAX_FAILURES})`);
+                            
+                            // 只有连续失败达到阈值才登出
+                            if (consecutiveFailures >= MAX_FAILURES) {
+                                // 如果会话无效，显示提示并登出
+                                alert('您的账号已在其他设备登录，将自动退出登录');
+                                logout();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('会话检查出错:', error);
+                        // 出错时不增加失败计数，避免因网络问题导致误判
                     }
                 }, 10000);
                 
