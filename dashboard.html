@@ -343,6 +343,9 @@
             const pageSize = 10;
             let totalUsers = 0;
             let apiKey = '';  // 用于存储API密钥
+            
+            // 添加会话检查计时器
+            let sessionCheckInterval = null;
     
             // 所有其他函数保持不变，但要删除重复定义的函数
             function log(message) {
@@ -455,13 +458,15 @@
                 const lastVerifyTime = localStorage.getItem('lastVerifyTime');
                 const storedApiKey = localStorage.getItem('apiKey');
                 const currentTime = Date.now();
+                const sessionId = localStorage.getItem('sessionId');
                 
                 console.log("页面加载时检查登录状态:");
                 console.log("- isLoggedIn:", isLoggedIn);
                 console.log("- lastVerifyTime:", lastVerifyTime);
                 console.log("- storedApiKey:", storedApiKey ? "已设置" : "未设置");
+                console.log("- sessionId:", sessionId);
                 
-                if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000) {
+                if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000 || !sessionId) {
                     // 未登录或登录已过期，重定向到登录页面
                     log('登录已过期或无效，请重新登录');
                     window.location.href = 'index.html';
@@ -477,6 +482,16 @@
                 if (!loginValid) {
                     return; // 登录无效，checkLogin函数已处理重定向
                 }
+                
+                // 检查会话是否有效
+                if (!checkSessionValid()) {
+                    log('您的账号已在其他设备登录，请重新登录');
+                    logout();
+                    return;
+                }
+                
+                // 启动会话检查定时器
+                startSessionCheck();
                 
                 // 获取并显示管理员用户名
                 try {
@@ -1155,13 +1170,21 @@
                         const isLoggedIn = localStorage.getItem('isLoggedIn');
                         const lastVerifyTime = localStorage.getItem('lastVerifyTime');
                         const storedApiKey = localStorage.getItem('apiKey');
+                        const sessionId = localStorage.getItem('sessionId');
                         const currentTime = Date.now();
                         
                         // 如果本地存储显示未登录或者登录已过期，重定向到登录页面
-                        if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000) {
+                        if (isLoggedIn !== 'true' || !lastVerifyTime || !storedApiKey || !sessionId || currentTime - parseInt(lastVerifyTime) > 30 * 60 * 1000) {
                             console.log('登录状态无效或已过期');
                             log('登录已过期，请重新登录');
                             window.location.href = 'index.html';
+                            return false;
+                        }
+                        
+                        // 检查会话是否有效
+                        if (!checkSessionValid()) {
+                            log('您的账号已在其他设备登录，请重新登录');
+                            logout();
                             return false;
                         }
                         
@@ -1213,9 +1236,28 @@
                 }
                 
                 function logout() {
+                    // 清除会话信息
+                    const currentSessionId = localStorage.getItem('sessionId');
+                    if (currentSessionId) {
+                        try {
+                            const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+                            delete activeSessions[currentSessionId];
+                            localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
+                        } catch (error) {
+                            console.error('清除会话信息失败:', error);
+                        }
+                    }
+                    
+                    // 清除定时器
+                    if (sessionCheckInterval) {
+                        clearInterval(sessionCheckInterval);
+                        sessionCheckInterval = null;
+                    }
+                    
                     localStorage.removeItem('lastVerifyTime');
                     localStorage.removeItem('isLoggedIn');
                     localStorage.removeItem('apiKey');
+                    localStorage.removeItem('sessionId');
                     window.location.href = 'index.html';
                 }
                 
@@ -1356,6 +1398,74 @@
                         log('批量添加机器人失败: ' + error.message);
                     }
                 }
+            
+            // 检查会话是否有效
+            function checkSessionValid() {
+                try {
+                    const currentSessionId = localStorage.getItem('sessionId');
+                    if (!currentSessionId) {
+                        return false;
+                    }
+                    
+                    // 获取活跃会话列表
+                    const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+                    
+                    // 检查当前会话是否在活跃列表中
+                    const sessionInfo = activeSessions[currentSessionId];
+                    if (!sessionInfo) {
+                        console.log('会话已失效：会话ID不在活跃列表中');
+                        return false;
+                    }
+                    
+                    // 更新最后活跃时间
+                    sessionInfo.lastActive = Date.now();
+                    activeSessions[currentSessionId] = sessionInfo;
+                    localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
+                    
+                    // 检查是否有更新的会话
+                    const username = localStorage.getItem('adminUsername');
+                    let newerSessionExists = false;
+                    
+                    for (const sid in activeSessions) {
+                        if (sid !== currentSessionId && 
+                            activeSessions[sid].username === username && 
+                            activeSessions[sid].loginTime > sessionInfo.loginTime) {
+                            console.log('检测到更新的会话:', sid);
+                            newerSessionExists = true;
+                            break;
+                        }
+                    }
+                    
+                    return !newerSessionExists;
+                } catch (error) {
+                    console.error('检查会话有效性出错:', error);
+                    return true; // 出错时默认会话有效
+                }
+            }
+            
+            // 启动会话检查定时器
+            function startSessionCheck() {
+                // 清除可能存在的旧定时器
+                if (sessionCheckInterval) {
+                    clearInterval(sessionCheckInterval);
+                }
+                
+                // 每10秒检查一次会话状态
+                sessionCheckInterval = setInterval(() => {
+                    if (!checkSessionValid()) {
+                        // 如果会话无效，显示提示并登出
+                        alert('您的账号已在其他设备登录，将自动退出登录');
+                        logout();
+                    }
+                }, 10000);
+                
+                // 页面关闭前清除定时器
+                window.addEventListener('beforeunload', () => {
+                    if (sessionCheckInterval) {
+                        clearInterval(sessionCheckInterval);
+                    }
+                });
+            }
              </script>
          </body>
          </html>
