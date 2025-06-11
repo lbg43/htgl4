@@ -173,6 +173,11 @@
             }
         }
 
+        // 生成唯一的会话ID
+        function generateSessionId() {
+            return Date.now().toString() + Math.random().toString(36).substring(2, 15);
+        }
+
         // 修改登录逻辑，使用Cloudflare Worker验证
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -201,6 +206,9 @@
             }
             
             try {
+                // 生成新的会话ID
+                const sessionId = generateSessionId();
+                
                 // 尝试连接Cloudflare Worker验证API可用性
                 const response = await fetch(`${WORKER_URL}/getMe`, {
                     method: 'GET',
@@ -211,10 +219,38 @@
                 
                 if (response.ok) {
                     console.log("登录成功");
+                    
+                    // 保存会话信息到localStorage
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('lastVerifyTime', Date.now().toString());
                     localStorage.setItem('apiKey', 'default_key'); // 使用默认key
                     localStorage.setItem('adminUsername', username);
+                    localStorage.setItem('sessionId', sessionId);
+                    
+                    // 保存会话ID到服务器（这里模拟，实际应该调用API保存）
+                    try {
+                        // 使用localStorage来模拟服务器存储
+                        // 在实际情况下，这应该是一个API调用
+                        const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+                        
+                        // 如果有其他活跃会话，先清除它们
+                        for (const oldSessionId in activeSessions) {
+                            if (activeSessions[oldSessionId].username === username) {
+                                delete activeSessions[oldSessionId];
+                            }
+                        }
+                        
+                        // 添加新会话
+                        activeSessions[sessionId] = {
+                            username: username,
+                            loginTime: Date.now(),
+                            lastActive: Date.now()
+                        };
+                        
+                        localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
+                    } catch (error) {
+                        console.error('保存会话信息失败:', error);
+                    }
                     
                     // 使用replace代替href，避免浏览历史问题
                     window.location.replace('dashboard.html');
@@ -230,10 +266,38 @@
                 errorMessage.textContent = '网络错误，请稍后重试';
                 errorMessage.style.display = 'block';
                 // 网络错误下也允许使用正确的密码登录
+                
+                // 生成新的会话ID
+                const sessionId = generateSessionId();
+                
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('lastVerifyTime', Date.now().toString());
                 localStorage.setItem('apiKey', 'default_key');
                 localStorage.setItem('adminUsername', username);
+                localStorage.setItem('sessionId', sessionId);
+                
+                // 保存会话信息（离线模式）
+                try {
+                    const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+                    
+                    // 清除同一用户的其他会话
+                    for (const oldSessionId in activeSessions) {
+                        if (activeSessions[oldSessionId].username === username) {
+                            delete activeSessions[oldSessionId];
+                        }
+                    }
+                    
+                    activeSessions[sessionId] = {
+                        username: username,
+                        loginTime: Date.now(),
+                        lastActive: Date.now()
+                    };
+                    
+                    localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
+                } catch (error) {
+                    console.error('保存会话信息失败:', error);
+                }
+                
                 window.location.replace('dashboard.html');
             }
         });
