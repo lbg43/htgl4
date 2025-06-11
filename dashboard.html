@@ -727,13 +727,54 @@
                         return;
                     }
                     
-                    // 获取当前使用的密码
-                    const currentPassword = localStorage.getItem('currentPassword') || 'admin123';
-                    
-                    // 验证旧密码是否正确
-                    if (oldPassword !== currentPassword) {
-                        log('旧密码不正确');
-                        return;
+                    // 尝试从服务器获取密码
+                    try {
+                        const passwordResponse = await fetch(`${CONFIG.WORKER_URL}/api`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': localStorage.getItem('apiKey') || ''
+                            },
+                            body: JSON.stringify({
+                                type: 'getPassword'
+                            })
+                        });
+                        
+                        if (passwordResponse.ok) {
+                            const passwordResult = await passwordResponse.json();
+                            if (passwordResult.success && passwordResult.password) {
+                                // 使用服务器密码验证
+                                if (oldPassword !== passwordResult.password) {
+                                    log('旧密码不正确');
+                                    return;
+                                }
+                                console.log("使用服务器密码验证成功");
+                            } else {
+                                // 获取密码失败，使用本地密码
+                                const currentPassword = localStorage.getItem('currentPassword') || 'admin123';
+                                if (oldPassword !== currentPassword) {
+                                    log('旧密码不正确');
+                                    return;
+                                }
+                                console.log("使用本地密码验证成功");
+                            }
+                        } else {
+                            // API请求失败，使用本地密码
+                            const currentPassword = localStorage.getItem('currentPassword') || 'admin123';
+                            if (oldPassword !== currentPassword) {
+                                log('旧密码不正确');
+                                return;
+                            }
+                            console.log("API请求失败，使用本地密码验证成功");
+                        }
+                    } catch (error) {
+                        // 出错时使用本地密码
+                        console.error('获取密码失败:', error);
+                        const currentPassword = localStorage.getItem('currentPassword') || 'admin123';
+                        if (oldPassword !== currentPassword) {
+                            log('旧密码不正确');
+                            return;
+                        }
                     }
                     
                     log('正在修改密码...');
@@ -747,8 +788,18 @@
                         // 将新密码保存到 localStorage
                         localStorage.setItem('currentPassword', newPassword);
                         
-                        log('密码修改成功，请使用新密码下次登录');
-                        alert('密码已成功修改为: ' + newPassword + '\n请记住您的新密码，下次登录需要使用它。');
+                        // 显示更详细的成功信息
+                        if (result.passwordSaved) {
+                            log('密码已成功修改并保存到服务器，所有设备都需要使用新密码登录');
+                            alert('密码已成功修改为: ' + newPassword + '\n新密码已保存到服务器，所有设备都需要使用新密码登录。\n请记住您的新密码！');
+                        } else if (result.warning) {
+                            log('密码已修改，但' + result.warning);
+                            alert('密码已成功修改为: ' + newPassword + '\n但' + result.warning + '\n请记住您的新密码！');
+                        } else {
+                            log('密码修改成功，请使用新密码下次登录');
+                            alert('密码已成功修改为: ' + newPassword + '\n请记住您的新密码，下次登录需要使用它。');
+                        }
+                        
                         closePasswordModal();
                         
                         // 3秒后退出登录
