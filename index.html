@@ -193,11 +193,8 @@
                 return;
             }
             
-            // 获取存储的密码，如果没有则使用默认密码
-            const storedPassword = localStorage.getItem('currentPassword') || DEFAULT_PASSWORD;
-            
             // 检查用户名和密码是否匹配
-            if (username !== DEFAULT_USERNAME || password !== storedPassword) {
+            if (username !== DEFAULT_USERNAME) {
                 errorMessage.textContent = '用户名或密码错误';
                 errorMessage.style.display = 'block';
                 // 刷新验证码
@@ -206,6 +203,49 @@
             }
             
             try {
+                // 首先尝试从服务器获取密码
+                const passwordResponse = await fetch(`${WORKER_URL}/api`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'getPassword'
+                    })
+                });
+                
+                let serverPassword = null;
+                let useServerPassword = false;
+                
+                if (passwordResponse.ok) {
+                    const passwordResult = await passwordResponse.json();
+                    if (passwordResult.success && passwordResult.password) {
+                        serverPassword = passwordResult.password;
+                        useServerPassword = true;
+                        console.log("从服务器获取到密码");
+                    }
+                }
+                
+                // 获取存储的密码，如果没有则使用默认密码
+                const storedPassword = localStorage.getItem('currentPassword') || DEFAULT_PASSWORD;
+                
+                // 优先使用服务器密码，如果服务器密码不可用，则使用本地密码
+                const validPassword = useServerPassword ? serverPassword : storedPassword;
+                
+                // 检查密码是否匹配
+                if (password !== validPassword) {
+                    errorMessage.textContent = '用户名或密码错误';
+                    errorMessage.style.display = 'block';
+                    // 刷新验证码
+                    generateCaptcha();
+                    return;
+                }
+                
+                // 如果使用了服务器密码，将其保存到本地存储中
+                if (useServerPassword) {
+                    localStorage.setItem('currentPassword', serverPassword);
+                }
+                
                 // 生成新的会话ID
                 const sessionId = generateSessionId();
                 
