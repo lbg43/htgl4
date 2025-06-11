@@ -227,29 +227,24 @@
                     localStorage.setItem('adminUsername', username);
                     localStorage.setItem('sessionId', sessionId);
                     
-                    // 保存会话ID到服务器（这里模拟，实际应该调用API保存）
+                    // 向服务器注册会话
                     try {
-                        // 使用localStorage来模拟服务器存储
-                        // 在实际情况下，这应该是一个API调用
-                        const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
+                        const registerResponse = await fetch(`${WORKER_URL}/session/register`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                sessionId: sessionId,
+                                username: username
+                            })
+                        });
                         
-                        // 如果有其他活跃会话，先清除它们
-                        for (const oldSessionId in activeSessions) {
-                            if (activeSessions[oldSessionId].username === username) {
-                                delete activeSessions[oldSessionId];
-                            }
+                        if (!registerResponse.ok) {
+                            console.error('注册会话失败:', await registerResponse.text());
                         }
-                        
-                        // 添加新会话
-                        activeSessions[sessionId] = {
-                            username: username,
-                            loginTime: Date.now(),
-                            lastActive: Date.now()
-                        };
-                        
-                        localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
                     } catch (error) {
-                        console.error('保存会话信息失败:', error);
+                        console.error('注册会话请求失败:', error);
                     }
                     
                     // 使用replace代替href，避免浏览历史问题
@@ -276,26 +271,20 @@
                 localStorage.setItem('adminUsername', username);
                 localStorage.setItem('sessionId', sessionId);
                 
-                // 保存会话信息（离线模式）
+                // 离线模式下也尝试注册会话（可能会失败）
                 try {
-                    const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-                    
-                    // 清除同一用户的其他会话
-                    for (const oldSessionId in activeSessions) {
-                        if (activeSessions[oldSessionId].username === username) {
-                            delete activeSessions[oldSessionId];
-                        }
-                    }
-                    
-                    activeSessions[sessionId] = {
-                        username: username,
-                        loginTime: Date.now(),
-                        lastActive: Date.now()
-                    };
-                    
-                    localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
+                    fetch(`${WORKER_URL}/session/register`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            sessionId: sessionId,
+                            username: username
+                        })
+                    }).catch(err => console.error('离线模式注册会话失败:', err));
                 } catch (error) {
-                    console.error('保存会话信息失败:', error);
+                    console.error('离线模式注册会话请求失败:', error);
                 }
                 
                 window.location.replace('dashboard.html');
