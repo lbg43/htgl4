@@ -1236,18 +1236,6 @@
                 }
                 
                 function logout() {
-                    // 清除会话信息
-                    const currentSessionId = localStorage.getItem('sessionId');
-                    if (currentSessionId) {
-                        try {
-                            const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-                            delete activeSessions[currentSessionId];
-                            localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
-                        } catch (error) {
-                            console.error('清除会话信息失败:', error);
-                        }
-                    }
-                    
                     // 清除定时器
                     if (sessionCheckInterval) {
                         clearInterval(sessionCheckInterval);
@@ -1400,46 +1388,39 @@
                 }
             
             // 检查会话是否有效
-            function checkSessionValid() {
+            async function checkSessionValid() {
                 try {
                     const currentSessionId = localStorage.getItem('sessionId');
-                    if (!currentSessionId) {
-                        return false;
-                    }
-                    
-                    // 获取活跃会话列表
-                    const activeSessions = JSON.parse(localStorage.getItem('activeSessions') || '{}');
-                    
-                    // 检查当前会话是否在活跃列表中
-                    const sessionInfo = activeSessions[currentSessionId];
-                    if (!sessionInfo) {
-                        console.log('会话已失效：会话ID不在活跃列表中');
-                        return false;
-                    }
-                    
-                    // 更新最后活跃时间
-                    sessionInfo.lastActive = Date.now();
-                    activeSessions[currentSessionId] = sessionInfo;
-                    localStorage.setItem('activeSessions', JSON.stringify(activeSessions));
-                    
-                    // 检查是否有更新的会话
                     const username = localStorage.getItem('adminUsername');
-                    let newerSessionExists = false;
                     
-                    for (const sid in activeSessions) {
-                        if (sid !== currentSessionId && 
-                            activeSessions[sid].username === username && 
-                            activeSessions[sid].loginTime > sessionInfo.loginTime) {
-                            console.log('检测到更新的会话:', sid);
-                            newerSessionExists = true;
-                            break;
-                        }
+                    if (!currentSessionId || !username) {
+                        return false;
                     }
                     
-                    return !newerSessionExists;
+                    // 调用服务器API检查会话是否有效
+                    const response = await fetch(`${CONFIG.WORKER_URL}/session/check`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            sessionId: currentSessionId,
+                            username: username
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        console.error('会话检查请求失败:', response.status);
+                        return false;
+                    }
+                    
+                    const result = await response.json();
+                    console.log('会话检查结果:', result);
+                    
+                    return result.isValid;
                 } catch (error) {
                     console.error('检查会话有效性出错:', error);
-                    return true; // 出错时默认会话有效
+                    return false; // 出错时认为会话无效，需要重新登录
                 }
             }
             
@@ -1451,8 +1432,9 @@
                 }
                 
                 // 每10秒检查一次会话状态
-                sessionCheckInterval = setInterval(() => {
-                    if (!checkSessionValid()) {
+                sessionCheckInterval = setInterval(async () => {
+                    const isValid = await checkSessionValid();
+                    if (!isValid) {
                         // 如果会话无效，显示提示并登出
                         alert('您的账号已在其他设备登录，将自动退出登录');
                         logout();
