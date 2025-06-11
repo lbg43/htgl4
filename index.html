@@ -229,6 +229,7 @@
                     
                     // 向服务器注册会话
                     try {
+                        console.log(`正在注册会话: sessionId=${sessionId}, username=${username}`);
                         const registerResponse = await fetch(`${WORKER_URL}/session/register`, {
                             method: 'POST',
                             headers: {
@@ -241,7 +242,17 @@
                         });
                         
                         if (!registerResponse.ok) {
-                            console.error('注册会话失败:', await registerResponse.text());
+                            console.error('注册会话失败:', registerResponse.status, registerResponse.statusText);
+                            const errorText = await registerResponse.text();
+                            console.error('错误详情:', errorText);
+                        } else {
+                            const result = await registerResponse.json();
+                            console.log('会话注册结果:', result);
+                            
+                            // 如果服务器返回警告信息，说明KV存储可能有问题
+                            if (result.warning) {
+                                console.warn('服务器警告:', result.warning);
+                            }
                         }
                     } catch (error) {
                         console.error('注册会话请求失败:', error);
@@ -273,6 +284,7 @@
                 
                 // 离线模式下也尝试注册会话（可能会失败）
                 try {
+                    console.log(`离线模式下尝试注册会话: sessionId=${sessionId}, username=${username}`);
                     fetch(`${WORKER_URL}/session/register`, {
                         method: 'POST',
                         headers: {
@@ -282,7 +294,25 @@
                             sessionId: sessionId,
                             username: username
                         })
-                    }).catch(err => console.error('离线模式注册会话失败:', err));
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error('离线模式注册会话失败:', response.status, response.statusText);
+                            return response.text().then(text => {
+                                console.error('错误详情:', text);
+                            });
+                        } else {
+                            return response.json().then(result => {
+                                console.log('离线模式会话注册结果:', result);
+                                if (result.warning) {
+                                    console.warn('服务器警告:', result.warning);
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error('离线模式注册会话请求失败:', err);
+                    });
                 } catch (error) {
                     console.error('离线模式注册会话请求失败:', error);
                 }
