@@ -265,6 +265,11 @@
         <button class="btn btn-primary" onclick="changePage('prev')" id="prev-page">上一页</button>
         <span id="page-info" style="margin: 0 15px;">第 1 页</span>
         <button class="btn btn-primary" onclick="changePage('next')" id="next-page">下一页</button>
+        <!-- 添加直接跳转到指定页的功能 -->
+        <span style="margin-left: 20px;">
+            <input type="number" id="goto-page-input" placeholder="页码" min="1" style="width: 60px; padding: 6px; vertical-align: middle;">
+            <button class="btn btn-primary" onclick="gotoSpecificPage()" style="vertical-align: middle;">跳转</button>
+        </span>
     </div>
 </div>
         <!-- 在系统设置标签页中移除修改密码和Worker URL部分 -->
@@ -510,6 +515,17 @@
                         if (event.key === 'Enter') {
                             event.preventDefault();
                             searchUsers();
+                        }
+                    });
+                }
+
+                // 为页码输入框添加回车键事件监听
+                const gotoPageInput = document.getElementById('goto-page-input');
+                if (gotoPageInput) {
+                    gotoPageInput.addEventListener('keypress', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            gotoSpecificPage();
                         }
                     });
                 }
@@ -1124,6 +1140,32 @@
                 }
                 document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
                 // 判断是否有搜索关键词
+                if (window.currentSearchKeyword) {
+                    searchUsersPage(window.currentSearchKeyword, currentPage);
+                } else {
+                    loadUsers(currentPage);
+                }
+            }
+            
+            // 添加跳转到指定页的功能
+            function gotoSpecificPage() {
+                const inputPage = parseInt(document.getElementById('goto-page-input').value);
+                const totalPages = Math.ceil(totalUsers / pageSize) || 1;
+                
+                // 验证页码是否有效
+                if (isNaN(inputPage) || inputPage < 1 || inputPage > totalPages) {
+                    alert(`请输入有效的页码(1-${totalPages})`);
+                    return;
+                }
+                
+                // 设置当前页码并更新页码显示
+                currentPage = inputPage;
+                document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                
+                // 清空输入框
+                document.getElementById('goto-page-input').value = '';
+                
+                // 根据是否有搜索关键词决定加载方式
                 if (window.currentSearchKeyword) {
                     searchUsersPage(window.currentSearchKeyword, currentPage);
                 } else {
